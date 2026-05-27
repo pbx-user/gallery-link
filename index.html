@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Printbox Embed — Test Page</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #1a1a1f; }
+  .wrap { max-width: 720px; margin: 40px auto; padding: 0 20px; }
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06); padding: 32px; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 24px; }
+  fieldset { border: 1px solid #ececef; border-radius: 10px; padding: 18px 20px 4px; margin: 0 0 16px; }
+  legend { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 4px; }
+  input { width: 100%; padding: 9px 11px; font-size: 14px; border: 1px solid #dcdde1; border-radius: 7px; margin-bottom: 14px; font-family: inherit; transition: border-color 0.1s; }
+  input:focus { outline: none; border-color: #0066ff; }
+  input::placeholder { color: #aaa; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .hint { font-size: 11px; color: #888; margin-top: -10px; margin-bottom: 14px; line-height: 1.5; }
+  .hint code { background: #f0f0f3; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .actions { display: flex; gap: 8px; margin-top: 8px; }
+  button { background: #0066ff; color: white; border: 0; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: 7px; cursor: pointer; font-family: inherit; }
+  button:hover { background: #0055d4; }
+  button.secondary { background: #eef0f3; color: #333; }
+  button.secondary:hover { background: #e3e5ea; }
+  #editor-wrap { display: none; min-height: 100vh; }
+  #editor-wrap.active { display: block; }
+  .form.hidden { display: none; }
+  .topbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #1a1a1f; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 4px 8px; background: #2d2d35; color: #d0d0d5; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, monospace; }
+  .topbar .spacer { flex: 1; }
+  .topbar button { padding: 6px 12px; font-size: 12px; }
+  #app { min-height: calc(100vh - 44px); background: #fff; }
+  .error { padding: 40px; color: #c00; font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7; background: #fff5f5; border-left: 4px solid #c00; margin: 20px; border-radius: 4px; }
+  .error code { background: #ffe0e0; padding: 2px 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="form">
+  <div class="card">
+    <h1>Printbox Embed — Test Page</h1>
+    <p class="sub">Wpisz parametry instancji i odpal edytor.</p>
+
+    <form id="cfgForm">
+      <fieldset>
+        <legend>Instance</legend>
+        <label for="siteName">Site name (CDN identifier) *</label>
+        <input id="siteName" required placeholder="masterpiece_ai" autocomplete="off">
+        <div class="hint">Z podkreśleniami (np. <code>masterpiece_ai</code>), nie myślnikami. To jest <code>&lt;site_name&gt;</code> w URL-u JS CDN. Wymaga whitelistowania domeny po stronie Printbox.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Editor Config</legend>
+
+        <label for="familyId">Product Family ID *</label>
+        <input id="familyId" required placeholder="325" autocomplete="off">
+
+        <label for="moduleId">Module ID (opcjonalne)</label>
+        <input id="moduleId" placeholder="" autocomplete="off">
+
+        <label for="productId">Product slug (opcjonalne — NIE numeric ID)</label>
+        <input id="productId" placeholder="hoodie-black" autocomplete="off">
+        <div class="hint">Musi być friendly-url slug (np. <code>hoodie-black</code>), nie numeryczne ID. Resolve: <code>GET /api/ec/v4/products/{id}/</code> → <code>friendly_url</code>.</div>
+
+        <div class="row">
+          <div>
+            <label for="storeName">Store name *</label>
+            <input id="storeName" required value="default_store" autocomplete="off">
+          </div>
+          <div>
+            <label for="currency">Currency *</label>
+            <input id="currency" required value="USD" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="locale">Locale *</label>
+            <input id="locale" required value="en-us" autocomplete="off">
+          </div>
+          <div>
+            <label for="language">Language *</label>
+            <input id="language" required value="en" autocomplete="off">
+          </div>
+        </div>
+
+        <label for="sessionId">Session ID (puste = anonimowy)</label>
+        <input id="sessionId" placeholder="" autocomplete="off">
+
+        <label for="projectId">Project ID (puste = nowy projekt)</label>
+        <input id="projectId" placeholder="" autocomplete="off">
+      </fieldset>
+
+      <fieldset>
+        <legend>Pre-filled Attributes (opcjonalne)</legend>
+        <label for="attrs">attributeValues JSON</label>
+        <input id="attrs" placeholder='{"size":"10x15","paper":"gloss"}' autocomplete="off">
+        <div class="hint">Nie przekazuj przy wznawianiu projektu (projectId ustawiony).</div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit">Launch Editor</button>
+        <button type="button" class="secondary" id="clearBtn">Clear saved</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="editor-wrap">
+  <div class="topbar">
+    <span class="badge" id="badge-instance"></span>
+    <span class="badge" id="badge-family"></span>
+    <span class="badge" id="badge-store"></span>
+    <span class="badge" id="badge-session"></span>
+    <span class="spacer"></span>
+    <button class="secondary" onclick="location.reload()">↺ Restart</button>
+  </div>
+  <div id="app"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'pbx-embed-demo-config-v1';
+
+// Restore saved config
+try {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  for (const [k, v] of Object.entries(saved)) {
+    const el = document.getElementById(k);
+    if (el && v) el.value = v;
+  }
+} catch {}
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('cfgForm').reset();
+  document.getElementById('storeName').value = 'default_store';
+  document.getElementById('currency').value = 'USD';
+  document.getElementById('locale').value = 'en-us';
+  document.getElementById('language').value = 'en';
+});
+
+document.getElementById('cfgForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+
+  const cfg = {
+    siteName: document.getElementById('siteName').value.trim(),
+    familyId: document.getElementById('familyId').value.trim(),
+    moduleId: document.getElementById('moduleId').value.trim(),
+    productId: document.getElementById('productId').value.trim(),
+    storeName: document.getElementById('storeName').value.trim(),
+    currency: document.getElementById('currency').value.trim(),
+    locale: document.getElementById('locale').value.trim(),
+    language: document.getElementById('language').value.trim(),
+    sessionId: document.getElementById('sessionId').value.trim(),
+    projectId: document.getElementById('projectId').value.trim(),
+    attrs: document.getElementById('attrs').value.trim(),
+  };
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+
+  document.getElementById('badge-instance').textContent = 'instance: ' + cfg.siteName;
+  document.getElementById('badge-family').textContent = 'family: ' + cfg.familyId;
+  document.getElementById('badge-store').textContent = 'store: ' + cfg.storeName;
+  document.getElementById('badge-session').textContent = 'session: ' + (cfg.sessionId ? cfg.sessionId.slice(0, 8) + '…' : 'anonymous');
+
+  document.getElementById('form').classList.add('hidden');
+  document.getElementById('editor-wrap').classList.add('active');
+
+  const scriptUrl = `https://js-cdn.getprintbox.com/init/${encodeURIComponent(cfg.siteName)}/init.min.js`;
+  const script = document.createElement('script');
+  script.src = scriptUrl;
+  script.onload = () => initEditor(cfg);
+  script.onerror = () => showError(`
+    Failed to load Printbox script from:<br>
+    <code>${scriptUrl}</code><br><br>
+    Possible causes:<br>
+    1. Wrong <strong>site_name</strong> — must use underscores (e.g. <code>masterpiece_ai</code>), not hyphens<br>
+    2. <strong>CORS not whitelisted</strong> for this origin: <code>${location.origin}</code> — contact Printbox support<br>
+    3. Network / DNS error<br><br>
+    Verify with: <code>curl -I ${scriptUrl}</code> — should return 200 + <code>application/javascript</code>.
+  `);
+  document.head.appendChild(script);
+});
+
+function showError(html) {
+  document.getElementById('app').innerHTML = `<div class="error">${html}</div>`;
+}
+
+function initEditor(cfg) {
+  if (typeof printbox === 'undefined') {
+    showError('Printbox global is not defined after script load. Probably wrong site_name (returned non-JS content).');
+    return;
+  }
+
+  // Required callbacks
+  printbox.authUserRequest = async () => {
+    console.log('[demo] authUserRequest →', cfg.sessionId ? '(session)' : '(empty)');
+    return cfg.sessionId || '';
+  };
+  printbox.isUserLoggedIn = async () => !!cfg.sessionId;
+  printbox.refreshSession = async () => {
+    console.log('[demo] refreshSession requested');
+    return cfg.sessionId || '';
+  };
+  printbox.goToCartFinished = async (projectId, data) => {
+    console.log('[demo] goToCartFinished', { projectId, data });
+    const summary = [
+      'Project added to cart',
+      '',
+      `Project ID: ${projectId}`,
+      `Name: ${data?.project?.name ?? '(n/a)'}`,
+      `Qty: ${data?.project?.quantity ?? '(n/a)'}`,
+      `Price (gross): ${data?.project?.price?.gross ?? '(n/a)'} ${cfg.currency}`,
+      '',
+      '(See console for full payload.)',
+    ].join('\n');
+    alert(summary);
+    return true;
+  };
+
+  // Build editor params
+  const params = {
+    projectId: cfg.projectId || '',
+    productFamilyId: cfg.familyId,
+    storeName: cfg.storeName,
+    currency: cfg.currency,
+    sessionId: cfg.sessionId || '',
+    translationsLanguage: cfg.language,
+    contentLanguage: cfg.language,
+    language: cfg.language,
+    ecommerceUrlPart: (location.origin + location.pathname).replace(/\/$/, ''),
+    locale: cfg.locale,
+    useIframe: false,
+    forceTrailingSlashWhenGeneratingUrls: true,
+  };
+
+  if (cfg.moduleId) params.moduleId = cfg.moduleId;
+  if (cfg.productId) params.productId = cfg.productId;
+
+  if (cfg.attrs && !cfg.projectId) {
+    try {
+      params.attributeValues = JSON.parse(cfg.attrs);
+    } catch (e) {
+      console.warn('[demo] Invalid attributeValues JSON, ignoring:', e);
+    }
+  }
+
+  console.log('[demo] setEditorConfig', params);
+  try {
+    printbox.setEditorConfig(params);
+  } catch (e) {
+    showError(`setEditorConfig threw: <code>${e.message}</code><br><br>See console for stack.`);
+    console.error(e);
+  }
+}
+</script>
+
+</body>
+</html>
