@@ -6,6 +6,8 @@ Apka do testowania edytora Printbox + flow Gallery Link (backend tworzy projekt 
 
 **1. Gallery Link (główny):** wybierz produkt (Photobook / Calendar / Frame), kliknij _Create Project & Launch Editor_. Backend (`api/create-project.js`) wymienia OAuth credentials na token, woła `POST /api/ec/v4/projects/` na `sales-demo-pbx2` z odpowiednim `family_id`/`product_id` i zestawem zdjęć, zwraca `uuid` — frontend otwiera edytor z tym `projectId`.
 
+**1a. Personalization (opcja):** zaznacz _Chcę dodać własne zdjęcie_ → wybierz plik z dysku. Plik leci do `api/upload-photo.js` → Vercel Blob → public URL → przekazany do edytora jako `personalizedPresentationContent.components.customerImage1` (`setEditorConfig` param). Komponent o personalize ID `customerImage1` musi być wcześniej skonfigurowany w Printbox admin dla wybranego produktu.
+
 **2. Manual config (advanced):** klasyczny formularz instancji do testowania innych site_name / paramów edytora. Wartości zapamiętane w `localStorage`.
 
 ## Produkty Gallery Link
@@ -27,8 +29,19 @@ Domyślny zestaw zdjęć (concert gallery, hostowany na `storage.googleapis.com/
 | `PBX_STORE_ID`              | —        | `1`                                         | store_id z `/api/ec/v4/stores/`            |
 | `PBX_BASE_URL`              | —        | `https://sales-demo-pbx2.getprintbox.com`   | base URL instancji                         |
 | `PBX_SITE_NAME`             | —        | `sales_demo`                                | site_name w URL-u JS CDN (underscores)     |
+| `BLOB_READ_WRITE_TOKEN`     | auto     | —                                           | wymagane dla `api/upload-photo` — auto-wstrzykiwane po stworzeniu Blob store |
 
 Set in Vercel: Project → Settings → Environment Variables. Po dodaniu zrób redeploy.
+
+## Vercel Blob (dla personalization upload)
+
+Funkcja `api/upload-photo.js` wymaga Vercel Blob storage. Setup jednorazowy:
+
+1. Vercel dashboard → twój projekt → **Storage** → **Create Database** → **Blob**
+2. Link store do tego projektu (env var `BLOB_READ_WRITE_TOKEN` dodaje się automatycznie)
+3. Redeploy
+
+Pliki idą do prefixu `gallery-link/` z random suffixem (multi-upload safe). Public URL ma format `https://<store-hash>.public.blob.vercel-storage.com/gallery-link/customer-image-<hash>.<ext>`.
 
 ## Deploy na Vercel
 
@@ -86,8 +99,10 @@ curl -I https://js-cdn.getprintbox.com/init/<site_name>/init.min.js
 
 ## Pliki
 
-- `index.html` — frontend (Gallery Link picker + manual config form + boot edytora)
+- `index.html` — frontend (Gallery Link picker + personalization upload + manual config form + boot edytora)
 - `api/create-project.js` — Vercel serverless function: OAuth + `POST /api/ec/v4/projects/`
+- `api/upload-photo.js` — Vercel serverless function: file → Vercel Blob → public URL
+- `package.json` — deklaruje dep `@vercel/blob`
 - `vercel.json` — czystsze URL-e (`cleanUrls: true`)
 - `pbx-docs/` — referencyjna dokumentacja Printbox (nie commitowana — local-only)
 - `README.md` — to co czytasz

@@ -115,6 +115,16 @@
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   .divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 28px 0 18px; }
   .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--fieldset-border); }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 0; }
+  .checkbox-row input[type="checkbox"] { width: auto; margin: 0; padding: 0; cursor: pointer; accent-color: var(--accent); }
+  .custom-image-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--fieldset-border); }
+  .custom-image-block.hidden { display: none; }
+  .custom-image-block input[type="file"] { font-size: 13px; padding: 6px 0; background: transparent; border: none; color: var(--text); margin-bottom: 0; }
+  .custom-image-block input[type="file"]::file-selector-button { background: var(--secondary-bg); color: var(--secondary-text); border: 1px solid var(--input-border); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; margin-right: 10px; }
+  .custom-image-block input[type="file"]::file-selector-button:hover { background: var(--secondary-hover); }
+  .image-preview { margin-top: 12px; }
+  .image-preview img { max-width: 280px; max-height: 180px; border-radius: 7px; border: 1px solid var(--fieldset-border); display: block; }
+  .image-preview.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -155,6 +165,19 @@
 https://example.com/photo2.jpg
 
 Zostaw puste = backend użyje zestawu demo z koncertu (sliced do min_photos dla wybranego produktu)."></textarea>
+
+    <fieldset style="margin-top: 4px;">
+      <legend>Personalization</legend>
+      <label class="checkbox-row">
+        <input type="checkbox" id="useCustomImage">
+        <span>Chcę dodać własne zdjęcie</span>
+      </label>
+      <div id="customImageBlock" class="custom-image-block hidden">
+        <input type="file" id="customImageFile" accept="image/jpeg,image/png,image/webp,image/gif">
+        <div id="customImagePreview" class="image-preview hidden"></div>
+        <div class="hint" style="margin: 10px 0 0;">Plik trafi do Vercel Blob → publiczny URL → przekazany do edytora jako <code>personalizedPresentationContent.components.customerImage1</code>.</div>
+      </div>
+    </fieldset>
 
     <div class="actions">
       <button type="button" id="galleryLaunchBtn">Create Project &amp; Launch Editor</button>
@@ -360,6 +383,48 @@ document.querySelectorAll('#productGrid .product-card').forEach((card) => {
   });
 });
 
+// Personalization — toggle custom image block and preview
+const useCustomImage = document.getElementById('useCustomImage');
+const customImageBlock = document.getElementById('customImageBlock');
+const customImageFile = document.getElementById('customImageFile');
+const customImagePreview = document.getElementById('customImagePreview');
+let selectedImageFile = null;
+let lastPreviewObjectUrl = null;
+
+useCustomImage.addEventListener('change', () => {
+  customImageBlock.classList.toggle('hidden', !useCustomImage.checked);
+});
+
+customImageFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (lastPreviewObjectUrl) {
+    URL.revokeObjectURL(lastPreviewObjectUrl);
+    lastPreviewObjectUrl = null;
+  }
+  if (!file) {
+    selectedImageFile = null;
+    customImagePreview.classList.add('hidden');
+    customImagePreview.innerHTML = '';
+    return;
+  }
+  selectedImageFile = file;
+  lastPreviewObjectUrl = URL.createObjectURL(file);
+  customImagePreview.innerHTML = `<img src="${lastPreviewObjectUrl}" alt="preview">`;
+  customImagePreview.classList.remove('hidden');
+});
+
+async function uploadCustomImage(file) {
+  const res = await fetch('/api/upload-photo', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Upload failed: HTTP ${res.status}`);
+  if (!data.url) throw new Error('Upload response missing url');
+  return data.url;
+}
+
 // Gallery Link — create project via backend, then launch editor
 document.getElementById('galleryLaunchBtn').addEventListener('click', async () => {
   const btn = document.getElementById('galleryLaunchBtn');
@@ -369,10 +434,24 @@ document.getElementById('galleryLaunchBtn').addEventListener('click', async () =
   const photos = photosRaw ? photosRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
 
   btn.disabled = true;
-  statusEl.className = 'status-box info';
-  statusEl.textContent = `Tworzę projekt ${productKey} przez backend…`;
+  let customImageUrl = null;
 
   try {
+    if (useCustomImage.checked) {
+      if (!selectedImageFile) {
+        statusEl.className = 'status-box error';
+        statusEl.textContent = 'Wybierz plik zdjęcia lub odznacz "Chcę dodać własne zdjęcie".';
+        btn.disabled = false;
+        return;
+      }
+      statusEl.className = 'status-box info';
+      statusEl.textContent = `Wgrywam zdjęcie (${(selectedImageFile.size / 1024).toFixed(0)} KB) do Vercel Blob…`;
+      customImageUrl = await uploadCustomImage(selectedImageFile);
+    }
+
+    statusEl.className = 'status-box info';
+    statusEl.textContent = `Tworzę projekt ${productKey} przez backend…`;
+
     const res = await fetch('/api/create-project', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -390,7 +469,7 @@ document.getElementById('galleryLaunchBtn').addEventListener('click', async () =
     }
 
     statusEl.className = 'status-box success';
-    statusEl.innerHTML = `✓ Projekt utworzony: <strong>${data.uuid}</strong><br>${data.photoCount} zdjęć · site: <code>${data.siteName}</code><br>Ładuję edytor…`;
+    statusEl.innerHTML = `✓ Projekt utworzony: <strong>${data.uuid}</strong><br>${data.photoCount} zdjęć · site: <code>${data.siteName}</code>${customImageUrl ? '<br>customerImage1: <code>' + customImageUrl + '</code>' : ''}<br>Ładuję edytor…`;
 
     launchEditor({
       siteName: data.siteName,
@@ -404,11 +483,12 @@ document.getElementById('galleryLaunchBtn').addEventListener('click', async () =
       sessionId: '',
       projectId: data.uuid,
       attrs: '',
+      customImageUrl,
     });
   } catch (e) {
     console.error('[gallery-link] launch failed', e);
     statusEl.className = 'status-box error';
-    statusEl.textContent = `Network error: ${e.message}`;
+    statusEl.textContent = `Error: ${e.message}`;
     btn.disabled = false;
   }
 });
@@ -474,6 +554,15 @@ function initEditor(cfg) {
     } catch (e) {
       console.warn('[demo] Invalid attributeValues JSON, ignoring:', e);
     }
+  }
+
+  if (cfg.customImageUrl) {
+    params.personalizedPresentationContent = {
+      version: 1,
+      components: {
+        customerImage1: cfg.customImageUrl,
+      },
+    };
   }
 
   console.log('[demo] setEditorConfig', params);
