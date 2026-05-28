@@ -20,13 +20,13 @@ Domyślny zestaw zdjęć (concert gallery, hostowany na `storage.googleapis.com/
 
 ## Wymagane env vars (Vercel)
 
-| Var               | Wymagane | Default                                     | Opis                                       |
-|-------------------|----------|---------------------------------------------|--------------------------------------------|
-| `PBX_CLIENT_ID`     | ✅       | —                                           | OAuth2 client_id (rejestracja: `/o/applications/`) |
-| `PBX_CLIENT_SECRET` | ✅       | —                                           | OAuth2 client_secret                       |
-| `PBX_STORE_ID`      | —        | `1`                                         | store_id z `/api/ec/v4/stores/`            |
-| `PBX_BASE_URL`      | —        | `https://sales-demo-pbx2.getprintbox.com`   | base URL instancji                         |
-| `PBX_SITE_NAME`     | —        | `sales_demo_pbx2`                           | site_name w URL-u JS CDN (underscores)     |
+| Var                       | Wymagane | Default                                     | Opis                                       |
+|---------------------------|----------|---------------------------------------------|--------------------------------------------|
+| `client_id_sales_demo`      | ✅       | —                                           | OAuth2 client_id (rejestracja: `/o/applications/` na sales-demo-pbx2) |
+| `client_secret_sales_demo`  | ✅       | —                                           | OAuth2 client_secret                       |
+| `PBX_STORE_ID`              | —        | `1`                                         | store_id z `/api/ec/v4/stores/`            |
+| `PBX_BASE_URL`              | —        | `https://sales-demo-pbx2.getprintbox.com`   | base URL instancji                         |
+| `PBX_SITE_NAME`             | —        | `sales_demo_pbx2`                           | site_name w URL-u JS CDN (underscores)     |
 
 Set in Vercel: Project → Settings → Environment Variables. Po dodaniu zrób redeploy.
 

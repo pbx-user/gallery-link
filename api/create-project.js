@@ -55,10 +55,10 @@ async function getToken() {
   const now = Date.now();
   if (cachedToken && now < cachedTokenExpiry - 60_000) return cachedToken;
 
-  const clientId = process.env.PBX_CLIENT_ID;
-  const clientSecret = process.env.PBX_CLIENT_SECRET;
+  const clientId = process.env.client_id_sales_demo;
+  const clientSecret = process.env.client_secret_sales_demo;
   if (!clientId || !clientSecret) {
-    throw httpError(500, 'Server misconfigured: PBX_CLIENT_ID and PBX_CLIENT_SECRET must be set');
+    throw httpError(500, 'Server misconfigured: client_id_sales_demo and client_secret_sales_demo env vars must be set in Vercel');
   }
 
   const body = new URLSearchParams({
