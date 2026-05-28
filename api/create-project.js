@@ -3,7 +3,7 @@ const PBX_SITE_NAME = process.env.PBX_SITE_NAME || 'sales_demo';
 const PBX_STORE_ID = parseInt(process.env.PBX_STORE_ID || '1', 10);
 
 const PRODUCTS = {
-  Photobook: { family_id: 275, product_id: 7488, min_photos: 26 },
+  Photobook: { family_id: 305, product_id: 7605, min_photos: 26 },
   Calendar:  { family_id: 220, product_id: 5809, min_photos: 13 },
   Frame:     { family_id: 299, product_id: 7365, min_photos: 1 },
 };

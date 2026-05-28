@@ -14,7 +14,7 @@ Apka do testowania edytora Printbox + flow Gallery Link (backend tworzy projekt 
 
 | Produkt   | family_id | product_id | min photos |
 |-----------|-----------|------------|------------|
-| Photobook | 275       | 7488       | 26         |
+| Photobook | 305       | 7605       | 26         |
 | Calendar  | 220       | 5809       | 13         |
 | Frame     | 299       | 7365       | 1          |
 
