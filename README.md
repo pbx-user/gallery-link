@@ -1,12 +1,34 @@
-# Printbox Embed — Vercel Demo
+# Printbox Embed — Gallery Link demo
 
-Minimalna jednostronicowa apka do testowania edytora Printbox. Czysty HTML + JS, bez build steps.
+Apka do testowania edytora Printbox + flow Gallery Link (backend tworzy projekt → frontend otwiera w edytorze). Static HTML + Vercel serverless function, bez build steps.
 
-## Co robi
+## Dwa tryby
 
-1. Pokazuje formularz z parametrami instancji Printbox (site_name, family_id, product slug, store, currency, locale, session, …)
-2. Po submit: dynamicznie ładuje `https://js-cdn.getprintbox.com/init/<site_name>/init.min.js` i woła `printbox.setEditorConfig(...)`
-3. Wartości formularza są zapamiętywane w `localStorage` — F5 ich nie traci
+**1. Gallery Link (główny):** wybierz produkt (Photobook / Calendar / Frame), kliknij _Create Project & Launch Editor_. Backend (`api/create-project.js`) wymienia OAuth credentials na token, woła `POST /api/ec/v4/projects/` na `sales-demo-pbx2` z odpowiednim `family_id`/`product_id` i zestawem zdjęć, zwraca `uuid` — frontend otwiera edytor z tym `projectId`.
+
+**2. Manual config (advanced):** klasyczny formularz instancji do testowania innych site_name / paramów edytora. Wartości zapamiętane w `localStorage`.
+
+## Produkty Gallery Link
+
+| Produkt   | family_id | product_id | min photos |
+|-----------|-----------|------------|------------|
+| Photobook | 275       | 7488       | 26         |
+| Calendar  | 220       | 5809       | 13         |
+| Frame     | 299       | 7365       | 1          |
+
+Domyślny zestaw zdjęć (concert gallery, hostowany na `storage.googleapis.com/pbx2-sales-demo`) jest wbudowany w backend i sliced do `min_photos` per produkt. Frontend może podać własne URL-e (textarea, jeden na linię) — wtedy override.
+
+## Wymagane env vars (Vercel)
+
+| Var               | Wymagane | Default                                     | Opis                                       |
+|-------------------|----------|---------------------------------------------|--------------------------------------------|
+| `PBX_CLIENT_ID`     | ✅       | —                                           | OAuth2 client_id (rejestracja: `/o/applications/`) |
+| `PBX_CLIENT_SECRET` | ✅       | —                                           | OAuth2 client_secret                       |
+| `PBX_STORE_ID`      | —        | `1`                                         | store_id z `/api/ec/v4/stores/`            |
+| `PBX_BASE_URL`      | —        | `https://sales-demo-pbx2.getprintbox.com`   | base URL instancji                         |
+| `PBX_SITE_NAME`     | —        | `sales_demo_pbx2`                           | site_name w URL-u JS CDN (underscores)     |
+
+Set in Vercel: Project → Settings → Environment Variables. Po dodaniu zrób redeploy.
 
 ## Deploy na Vercel
 
@@ -64,8 +86,10 @@ curl -I https://js-cdn.getprintbox.com/init/<site_name>/init.min.js
 
 ## Pliki
 
-- `index.html` — cała apka (formularz + boot edytora)
+- `index.html` — frontend (Gallery Link picker + manual config form + boot edytora)
+- `api/create-project.js` — Vercel serverless function: OAuth + `POST /api/ec/v4/projects/`
 - `vercel.json` — czystsze URL-e (`cleanUrls: true`)
+- `pbx-docs/` — referencyjna dokumentacja Printbox (nie commitowana — local-only)
 - `README.md` — to co czytasz
 
 ## Co dalej

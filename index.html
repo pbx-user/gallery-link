@@ -96,6 +96,25 @@
   #app { min-height: calc(100vh - 44px); background: var(--app-bg); }
   .error { padding: 40px; color: var(--error-text); font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7; background: var(--error-bg); border-left: 4px solid var(--error-text); margin: 20px; border-radius: 4px; }
   .error code { background: var(--error-code-bg); padding: 2px 6px; border-radius: 3px; }
+  .product-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 560px) { .product-grid { grid-template-columns: 1fr; } }
+  .product-card { display: block; cursor: pointer; border: 1.5px solid var(--input-border); border-radius: 10px; padding: 14px; transition: border-color 0.15s, background 0.15s; }
+  .product-card:hover { border-color: var(--accent); }
+  .product-card input { position: absolute; opacity: 0; pointer-events: none; }
+  .product-card.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .product-name { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .product-meta { font-size: 11px; color: var(--text-faint); line-height: 1.5; font-family: ui-monospace, SFMono-Regular, monospace; }
+  textarea { width: 100%; padding: 9px 11px; font-size: 13px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 7px; margin-bottom: 14px; font-family: ui-monospace, SFMono-Regular, monospace; resize: vertical; min-height: 70px; transition: border-color 0.1s, background 0.2s, color 0.2s; }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea::placeholder { color: var(--input-placeholder); }
+  .status-box { font-size: 12px; padding: 10px 12px; border-radius: 7px; margin-top: 8px; line-height: 1.6; font-family: ui-monospace, monospace; word-break: break-all; }
+  .status-box.info { background: var(--code-bg); color: var(--text-muted); }
+  .status-box.success { background: color-mix(in srgb, #00c853 12%, transparent); color: var(--text); border-left: 3px solid #00c853; }
+  .status-box.error { background: var(--error-bg); color: var(--error-text); border-left: 3px solid var(--error-text); }
+  .status-box.hidden { display: none; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 28px 0 18px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--fieldset-border); }
 </style>
 </head>
 <body>
@@ -104,14 +123,47 @@
   <div class="card">
     <div class="card-header">
       <div class="titles">
-        <h1>Printbox Embed — Test Page</h1>
-        <p class="sub">Wpisz parametry instancji i odpal edytor.</p>
+        <h1>Gallery Link — quick launch</h1>
+        <p class="sub">Wybierz produkt, opcjonalnie wklej własne URL-e zdjęć i odpal edytor. Projekt zostanie utworzony przez backend na <code>sales-demo-pbx2</code>.</p>
       </div>
       <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark mode">
         <span class="icon" id="themeIcon">🌙</span>
         <span class="label" id="themeLabel">Dark</span>
       </button>
     </div>
+
+    <div class="product-grid" id="productGrid">
+      <label class="product-card selected" data-product="Photobook">
+        <input type="radio" name="product" value="Photobook" checked>
+        <div class="product-name">Photobook</div>
+        <div class="product-meta">family 275<br>product 7488<br>min 26 zdjęć</div>
+      </label>
+      <label class="product-card" data-product="Calendar">
+        <input type="radio" name="product" value="Calendar">
+        <div class="product-name">Calendar</div>
+        <div class="product-meta">family 220<br>product 5809<br>min 13 zdjęć</div>
+      </label>
+      <label class="product-card" data-product="Frame">
+        <input type="radio" name="product" value="Frame">
+        <div class="product-name">Frame</div>
+        <div class="product-meta">family 299<br>product 7365<br>min 1 zdjęcie</div>
+      </label>
+    </div>
+
+    <label for="galleryPhotos">Custom photo URLs (opcjonalne — jeden URL na linię)</label>
+    <textarea id="galleryPhotos" rows="3" placeholder="https://example.com/photo1.jpg
+https://example.com/photo2.jpg
+
+Zostaw puste = backend użyje zestawu demo z koncertu (sliced do min_photos dla wybranego produktu)."></textarea>
+
+    <div class="actions">
+      <button type="button" id="galleryLaunchBtn">Create Project &amp; Launch Editor</button>
+    </div>
+    <div id="galleryStatus" class="status-box hidden"></div>
+
+    <div class="divider">Manual config (advanced)</div>
+
+    <p class="sub" style="margin-bottom: 16px;">Wpisz parametry instancji i odpal edytor ręcznie — przydatne do testowania innych instancji niż <code>sales-demo-pbx2</code>.</p>
 
     <form id="cfgForm">
       <fieldset>
@@ -271,7 +323,10 @@ document.getElementById('cfgForm').addEventListener('submit', (e) => {
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  launchEditor(cfg);
+});
 
+function launchEditor(cfg) {
   document.getElementById('badge-instance').textContent = 'instance: ' + cfg.siteName;
   document.getElementById('badge-family').textContent = 'family: ' + cfg.familyId;
   document.getElementById('badge-store').textContent = 'store: ' + cfg.storeName;
@@ -294,6 +349,68 @@ document.getElementById('cfgForm').addEventListener('submit', (e) => {
     Verify with: <code>curl -I ${scriptUrl}</code> — should return 200 + <code>application/javascript</code>.
   `);
   document.head.appendChild(script);
+}
+
+// Gallery Link — product cards selection state
+document.querySelectorAll('#productGrid .product-card').forEach((card) => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('#productGrid .product-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    card.querySelector('input[type="radio"]').checked = true;
+  });
+});
+
+// Gallery Link — create project via backend, then launch editor
+document.getElementById('galleryLaunchBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('galleryLaunchBtn');
+  const statusEl = document.getElementById('galleryStatus');
+  const productKey = document.querySelector('input[name="product"]:checked').value;
+  const photosRaw = document.getElementById('galleryPhotos').value.trim();
+  const photos = photosRaw ? photosRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+
+  btn.disabled = true;
+  statusEl.className = 'status-box info';
+  statusEl.textContent = `Tworzę projekt ${productKey} przez backend…`;
+
+  try {
+    const res = await fetch('/api/create-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productKey, photos }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusEl.className = 'status-box error';
+      const detail = typeof data.details === 'object' ? JSON.stringify(data.details, null, 2) : (data.details || '');
+      statusEl.innerHTML = `<strong>Błąd ${res.status}:</strong> ${data.error || 'unknown'}${detail ? '<br><br>' + detail.replace(/</g, '&lt;') : ''}`;
+      btn.disabled = false;
+      return;
+    }
+
+    statusEl.className = 'status-box success';
+    statusEl.innerHTML = `✓ Projekt utworzony: <strong>${data.uuid}</strong><br>${data.photoCount} zdjęć · site: <code>${data.siteName}</code><br>Ładuję edytor…`;
+
+    launchEditor({
+      siteName: data.siteName,
+      familyId: String(data.familyId),
+      moduleId: '',
+      productId: '',
+      storeName: 'default_store',
+      currency: 'USD',
+      locale: 'en-us',
+      language: 'en',
+      sessionId: '',
+      projectId: data.uuid,
+      attrs: '',
+    });
+  } catch (e) {
+    console.error('[gallery-link] launch failed', e);
+    statusEl.className = 'status-box error';
+    statusEl.textContent = `Network error: ${e.message}`;
+    btn.disabled = false;
+  }
 });
 
 function showError(html) {
