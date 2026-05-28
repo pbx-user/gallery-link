@@ -263,7 +263,7 @@ Zostaw puste = backend użyje zestawu demo z koncertu (sliced do min_photos dla 
     <button type="button" class="theme-toggle" id="themeToggleTop" aria-label="Toggle theme" title="Toggle light/dark mode">
       <span class="icon" id="themeIconTop">🌙</span>
     </button>
-    <button class="secondary" onclick="location.reload()">↺ Restart</button>
+    <button class="secondary" onclick="location.href = location.pathname">↺ Restart</button>
   </div>
   <div id="app"></div>
 </div>
@@ -471,6 +471,13 @@ document.getElementById('galleryLaunchBtn').addEventListener('click', async () =
     statusEl.className = 'status-box success';
     statusEl.innerHTML = `✓ Projekt utworzony: <strong>${data.uuid}</strong><br>${data.photoCount} zdjęć · site: <code>${data.siteName}</code>${customImageUrl ? '<br>customerImage1: <code>' + customImageUrl + '</code>' : ''}<br>Ładuję edytor…`;
 
+    const urlParams = new URLSearchParams({
+      projectId: data.uuid,
+      familyId: String(data.familyId),
+      siteName: data.siteName,
+    });
+    history.replaceState(null, '', location.pathname + '?' + urlParams.toString());
+
     launchEditor({
       siteName: data.siteName,
       familyId: String(data.familyId),
@@ -573,6 +580,30 @@ function initEditor(cfg) {
     console.error(e);
   }
 }
+
+// Auto-restore: if URL has projectId+familyId+siteName, skip form and reopen the existing project
+(function restoreFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const projectId = params.get('projectId');
+  const familyId = params.get('familyId');
+  const siteName = params.get('siteName');
+  if (!projectId || !familyId || !siteName) return;
+
+  launchEditor({
+    siteName,
+    familyId,
+    moduleId: '',
+    productId: '',
+    storeName: 'default_store',
+    currency: 'USD',
+    locale: 'en-us',
+    language: 'en',
+    sessionId: '',
+    projectId,
+    attrs: '',
+    customImageUrl: null,
+  });
+})();
 </script>
 
 </body>
