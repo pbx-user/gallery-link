@@ -5,44 +5,113 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Printbox Embed — Test Page</title>
 <style>
+  :root {
+    --bg: #f5f6f8;
+    --text: #1a1a1f;
+    --text-muted: #666;
+    --text-faint: #888;
+    --text-label: #444;
+    --card-bg: #fff;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+    --fieldset-border: #ececef;
+    --input-bg: #fff;
+    --input-border: #dcdde1;
+    --input-placeholder: #aaa;
+    --code-bg: #f0f0f3;
+    --accent: #0066ff;
+    --accent-hover: #0055d4;
+    --secondary-bg: #eef0f3;
+    --secondary-hover: #e3e5ea;
+    --secondary-text: #333;
+    --topbar-bg: #1a1a1f;
+    --badge-bg: #2d2d35;
+    --badge-text: #d0d0d5;
+    --app-bg: #fff;
+    --error-text: #c00;
+    --error-bg: #fff5f5;
+    --error-code-bg: #ffe0e0;
+    --toggle-border: #dcdde1;
+  }
+  [data-theme="dark"] {
+    --bg: #0f1014;
+    --text: #e8e8ec;
+    --text-muted: #9a9aa3;
+    --text-faint: #777783;
+    --text-label: #b8b8c0;
+    --card-bg: #1a1b21;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4);
+    --fieldset-border: #2a2b32;
+    --input-bg: #14151a;
+    --input-border: #2f3038;
+    --input-placeholder: #565660;
+    --code-bg: #25262d;
+    --accent: #4d8dff;
+    --accent-hover: #6ba0ff;
+    --secondary-bg: #25262d;
+    --secondary-hover: #30313a;
+    --secondary-text: #d8d8de;
+    --topbar-bg: #08090c;
+    --badge-bg: #25262d;
+    --badge-text: #d0d0d5;
+    --app-bg: #14151a;
+    --error-text: #ff6b6b;
+    --error-bg: #2a1515;
+    --error-code-bg: #3a1f1f;
+    --toggle-border: #2f3038;
+  }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #1a1a1f; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); transition: background 0.2s, color 0.2s; }
   .wrap { max-width: 720px; margin: 40px auto; padding: 0 20px; }
-  .card { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06); padding: 32px; }
+  .card { background: var(--card-bg); border-radius: 14px; box-shadow: var(--card-shadow); padding: 32px; }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+  .card-header .titles { flex: 1; }
   h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
-  .sub { color: #666; font-size: 13px; margin-bottom: 24px; }
-  fieldset { border: 1px solid #ececef; border-radius: 10px; padding: 18px 20px 4px; margin: 0 0 16px; }
-  legend { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; }
-  label { display: block; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 4px; }
-  input { width: 100%; padding: 9px 11px; font-size: 14px; border: 1px solid #dcdde1; border-radius: 7px; margin-bottom: 14px; font-family: inherit; transition: border-color 0.1s; }
-  input:focus { outline: none; border-color: #0066ff; }
-  input::placeholder { color: #aaa; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 0; }
+  fieldset { border: 1px solid var(--fieldset-border); border-radius: 10px; padding: 18px 20px 4px; margin: 0 0 16px; }
+  legend { font-size: 11px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-label); margin-bottom: 4px; }
+  input { width: 100%; padding: 9px 11px; font-size: 14px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); border-radius: 7px; margin-bottom: 14px; font-family: inherit; transition: border-color 0.1s, background 0.2s, color 0.2s; }
+  input:focus { outline: none; border-color: var(--accent); }
+  input::placeholder { color: var(--input-placeholder); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .hint { font-size: 11px; color: #888; margin-top: -10px; margin-bottom: 14px; line-height: 1.5; }
-  .hint code { background: #f0f0f3; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .hint { font-size: 11px; color: var(--text-faint); margin-top: -10px; margin-bottom: 14px; line-height: 1.5; }
+  .hint code { background: var(--code-bg); color: var(--text); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
   .actions { display: flex; gap: 8px; margin-top: 8px; }
-  button { background: #0066ff; color: white; border: 0; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: 7px; cursor: pointer; font-family: inherit; }
-  button:hover { background: #0055d4; }
-  button.secondary { background: #eef0f3; color: #333; }
-  button.secondary:hover { background: #e3e5ea; }
+  button { background: var(--accent); color: white; border: 0; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: 7px; cursor: pointer; font-family: inherit; }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: var(--secondary-bg); color: var(--secondary-text); }
+  button.secondary:hover { background: var(--secondary-hover); }
+  .theme-toggle { background: transparent; border: 1px solid var(--toggle-border); color: var(--text); padding: 6px 10px; font-size: 16px; border-radius: 7px; cursor: pointer; line-height: 1; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+  .theme-toggle:hover { background: var(--secondary-bg); }
+  .theme-toggle .label { font-size: 12px; }
   #editor-wrap { display: none; min-height: 100vh; }
   #editor-wrap.active { display: block; }
   .form.hidden { display: none; }
-  .topbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: #1a1a1f; flex-wrap: wrap; }
-  .badge { font-size: 11px; padding: 4px 8px; background: #2d2d35; color: #d0d0d5; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, monospace; }
+  .topbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: var(--topbar-bg); flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 4px 8px; background: var(--badge-bg); color: var(--badge-text); border-radius: 5px; font-family: ui-monospace, SFMono-Regular, monospace; }
   .topbar .spacer { flex: 1; }
   .topbar button { padding: 6px 12px; font-size: 12px; }
-  #app { min-height: calc(100vh - 44px); background: #fff; }
-  .error { padding: 40px; color: #c00; font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7; background: #fff5f5; border-left: 4px solid #c00; margin: 20px; border-radius: 4px; }
-  .error code { background: #ffe0e0; padding: 2px 6px; border-radius: 3px; }
+  .topbar .theme-toggle { border-color: #3a3b42; color: #d0d0d5; }
+  .topbar .theme-toggle:hover { background: #2d2d35; }
+  #app { min-height: calc(100vh - 44px); background: var(--app-bg); }
+  .error { padding: 40px; color: var(--error-text); font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.7; background: var(--error-bg); border-left: 4px solid var(--error-text); margin: 20px; border-radius: 4px; }
+  .error code { background: var(--error-code-bg); padding: 2px 6px; border-radius: 3px; }
 </style>
 </head>
 <body>
 
 <div class="wrap" id="form">
   <div class="card">
-    <h1>Printbox Embed — Test Page</h1>
-    <p class="sub">Wpisz parametry instancji i odpal edytor.</p>
+    <div class="card-header">
+      <div class="titles">
+        <h1>Printbox Embed — Test Page</h1>
+        <p class="sub">Wpisz parametry instancji i odpal edytor.</p>
+      </div>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+        <span class="icon" id="themeIcon">🌙</span>
+        <span class="label" id="themeLabel">Dark</span>
+      </button>
+    </div>
 
     <form id="cfgForm">
       <fieldset>
@@ -116,6 +185,9 @@
     <span class="badge" id="badge-store"></span>
     <span class="badge" id="badge-session"></span>
     <span class="spacer"></span>
+    <button type="button" class="theme-toggle" id="themeToggleTop" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="icon" id="themeIconTop">🌙</span>
+    </button>
     <button class="secondary" onclick="location.reload()">↺ Restart</button>
   </div>
   <div id="app"></div>
@@ -123,6 +195,45 @@
 
 <script>
 const STORAGE_KEY = 'pbx-embed-demo-config-v1';
+const THEME_KEY = 'pbx-embed-demo-theme';
+
+// Theme: load saved preference, fall back to OS preference
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  applyTheme(theme);
+})();
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const isDark = theme === 'dark';
+  const icon = isDark ? '☀️' : '🌙';
+  const label = isDark ? 'Light' : 'Dark';
+  const iconEl = document.getElementById('themeIcon');
+  const labelEl = document.getElementById('themeLabel');
+  const iconTopEl = document.getElementById('themeIconTop');
+  if (iconEl) iconEl.textContent = icon;
+  if (labelEl) labelEl.textContent = label;
+  if (iconTopEl) iconTopEl.textContent = icon;
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+document.getElementById('themeToggleTop').addEventListener('click', toggleTheme);
+
+// Follow OS preference changes when user hasn't explicitly chosen
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? 'dark' : 'light');
+  });
+}
 
 // Restore saved config
 try {
