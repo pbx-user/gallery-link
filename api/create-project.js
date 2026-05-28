@@ -1,5 +1,5 @@
 const PBX_BASE = process.env.PBX_BASE_URL || 'https://sales-demo-pbx2.getprintbox.com';
-const PBX_SITE_NAME = process.env.PBX_SITE_NAME || 'sales_demo_pbx2';
+const PBX_SITE_NAME = process.env.PBX_SITE_NAME || 'sales_demo';
 const PBX_STORE_ID = parseInt(process.env.PBX_STORE_ID || '1', 10);
 
 const PRODUCTS = {

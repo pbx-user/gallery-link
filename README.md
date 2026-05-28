@@ -26,7 +26,7 @@ Domyślny zestaw zdjęć (concert gallery, hostowany na `storage.googleapis.com/
 | `client_secret_sales_demo`  | ✅       | —                                           | OAuth2 client_secret                       |
 | `PBX_STORE_ID`              | —        | `1`                                         | store_id z `/api/ec/v4/stores/`            |
 | `PBX_BASE_URL`              | —        | `https://sales-demo-pbx2.getprintbox.com`   | base URL instancji                         |
-| `PBX_SITE_NAME`             | —        | `sales_demo_pbx2`                           | site_name w URL-u JS CDN (underscores)     |
+| `PBX_SITE_NAME`             | —        | `sales_demo`                                | site_name w URL-u JS CDN (underscores)     |
 
 Set in Vercel: Project → Settings → Environment Variables. Po dodaniu zrób redeploy.
 
