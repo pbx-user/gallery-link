@@ -1,14 +1,36 @@
 # Printbox Embed — Gallery Link demo
 
-Apka do testowania edytora Printbox + flow Gallery Link (backend tworzy projekt → frontend otwiera w edytorze). Static HTML + Vercel serverless function, bez build steps.
+Aplikacja do tworzenia projektów Printbox z platformy zdjęciowej. Static HTML + React (in-browser Babel) frontend + Vercel serverless backend. Bez build steps.
 
-## Dwa tryby
+## Architektura
 
-**1. Gallery Link (główny):** wybierz produkt (Photobook / Calendar / Frame), kliknij _Create Project & Launch Editor_. Backend (`api/create-project.js`) wymienia OAuth credentials na token, woła `POST /api/ec/v4/projects/` na `sales-demo-pbx2` z odpowiednim `family_id`/`product_id` i zestawem zdjęć, zwraca `uuid` — frontend otwiera edytor z tym `projectId`.
+- **`index.html` + `src/*.jsx` + `tweaks-panel.jsx`** — Encore React frontend od zespołu frontowego (skanowanie biletu → wybór produktu → memories picker → upload własnych zdjęć → handoff).
+- **`api/create-project.js`** — Vercel function: OAuth client_credentials → `POST /api/ec/v4/projects/` → zwraca `uuid`.
+- **`api/upload-photo.js`** — Vercel function: raw binary → Vercel Blob (`access: 'public'`) → zwraca public URL.
+- **`editor.html`** — boot edytora Printbox. Czyta URL params `projectId` / `familyId` / `siteName` / `customImageUrl` i woła `printbox.setEditorConfig(...)`. Gdy brak paramów — fallback manual config form (advanced/dev).
 
-**1a. Personalization (opcja):** zaznacz _Chcę dodać własne zdjęcie_ → wybierz plik z dysku. Plik leci do `api/upload-photo.js` → Vercel Blob → public URL → przekazany do edytora jako `personalizedPresentationContent.components.customerImage1` (`setEditorConfig` param). Komponent o personalize ID `customerImage1` musi być wcześniej skonfigurowany w Printbox admin dla wybranego produktu.
+## User flow
 
-**2. Manual config (advanced):** klasyczny formularz instancji do testowania innych site_name / paramów edytora. Wartości zapamiętane w `localStorage`.
+1. Landing (`/`) → React Encore: ticket scan / manual code.
+2. Memories: user wybiera zdjęcia z gali koncertowej; produkt zmienia min/max liczbę zdjęć.
+3. Upload (opcjonalne): user dorzuca własne zdjęcia (max 7).
+4. _Create [Product]_ → `DoneScreen`:
+   - Pierwsze własne zdjęcie (jeśli jest) → `POST /api/upload-photo` → public URL (Blob).
+   - `POST /api/create-project` z `{ productKey, photos }` → `{ uuid, siteName, familyId, ... }`.
+   - Redirect: `/editor.html?projectId=<uuid>&familyId=<id>&siteName=<name>&customImageUrl=<url>`.
+5. `editor.html` ładuje init.min.js i woła `setEditorConfig` z `projectId` + (opcjonalnie) `personalizedPresentationContent.components.customerImage1`.
+
+Refresh / duplicate-tab na `/editor.html?...` re-otwiera projekt bezpośrednio (paramy w URL = source of truth).
+
+## Produkty
+
+| UI id   | UI name    | Backend productKey | family_id | product_id | min photos |
+|---------|------------|--------------------|-----------|------------|------------|
+| `book`  | Photobook  | `Photobook`        | 305       | 7605       | 26         |
+| `cal`   | Calendar   | `Calendar`         | 220       | 5809       | 13         |
+| `frame` | Frame      | `Frame`            | 299       | 7365       | 1          |
+
+Mapowanie id → productKey jest w `src/upload.jsx` (`PRODUCT_KEY_BY_ID`). Aktualne listy `PRODUCTS` po obu stronach muszą zgadzać się minimami — frontend nie pozwoli przejść dalej z mniejszą liczbą zdjęć niż backendowy minimum.
 
 ## Produkty Gallery Link
 
@@ -99,7 +121,15 @@ curl -I https://js-cdn.getprintbox.com/init/<site_name>/init.min.js
 
 ## Pliki
 
-- `index.html` — frontend (Gallery Link picker + personalization upload + manual config form + boot edytora)
+- `index.html` — React Encore shell (od frontend team), ładuje React 18 UMD + Babel-standalone z CDN
+- `src/app.jsx` — orchestrator: state machine (scan → memories → upload → done) + nawigacja
+- `src/scan.jsx` — ScanScreen / TicketScreen / UnlockScreen
+- `src/memories.jsx` — pro-shots picker (masonry, lightbox)
+- `src/upload.jsx` — UploadScreen (własne zdjęcia) + `DoneScreen` (backend handoff)
+- `src/data.jsx` — PRODUCTS, CONCERTS, icons, ProductSheet
+- `tweaks-panel.jsx` — `useTweaks` hook (theming)
+- `assets/photobook.jpg` — product card image
+- `editor.html` — boot Printbox edytora + fallback manual config (przeniesione z poprzedniego index.html)
 - `api/create-project.js` — Vercel serverless function: OAuth + `POST /api/ec/v4/projects/`
 - `api/upload-photo.js` — Vercel serverless function: file → Vercel Blob → public URL
 - `package.json` — deklaruje dep `@vercel/blob`
