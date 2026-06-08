@@ -172,7 +172,7 @@ function DesktopProductRow({ p, active, onTap, onInfo }) {
       background: active ? 'var(--ink)' : 'var(--bg-1)', border: `1px solid ${active ? 'var(--ink)' : 'var(--line)'}`,
       color: active ? 'var(--acc-ink)' : 'var(--ink)', transition: 'all .18s ease',
     }}>
-      <div style={{ width: 68, height: 68, borderRadius: 12, flexShrink: 0, background: `#0c0c0e url("${p.img}") center/cover no-repeat` }} />
+      <div style={{ width: 92, height: 92, borderRadius: 14, flexShrink: 0, background: `#0c0c0e url("${p.img}") center/cover no-repeat` }} />
       <div style={{ minWidth: 0, flex: 1 }}>
         <div className="row" style={{ gap: 6, alignItems: 'center' }}>
           <div className="display" style={{ fontSize: 17, lineHeight: 1 }}>{p.name}</div>
