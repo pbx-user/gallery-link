@@ -5,7 +5,7 @@ const PBX_STORE_ID = parseInt(process.env.PBX_STORE_ID || '1', 10);
 const PRODUCTS = {
   Photobook: { family_id: 305, product_id: 7605, min_photos: 26 },
   Calendar:  { family_id: 220, product_id: 5809, min_photos: 13 },
-  Frame:     { family_id: 299, product_id: 7365, min_photos: 1 },
+  Frame:     { family_id: 304, product_id: 7519, min_photos: 1 },
 };
 
 const DEMO_PHOTO_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery';

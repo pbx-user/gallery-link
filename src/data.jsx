@@ -22,7 +22,7 @@ const EVENT_2 = {
 // Each id maps in DoneScreen to a backend productKey:
 //   book → Photobook (family 305 / product 7605, min 26 photos)
 //   cal  → Calendar  (family 220 / product 5809, min 13 photos)
-//   frame→ Frame     (family 299 / product 7365, min 1  photo)
+//   frame→ Frame     (family 304 / product 7519, min 1  photo)
 const PRODUCTS = [
   { id: 'book',  name: 'Photobook', sub: 'Hardcover · 28 pages', min: 26, max: 100, price: 'from $149', blurb: 'Your night, bound in print.', desc: 'Lay-flat hardcover on museum-grade matte paper — every spread opens edge to edge, so the night plays back full-bleed.',
     img: 'assets/photobook.jpg' },

@@ -28,7 +28,7 @@ Refresh / duplicate-tab na `/editor.html?...` re-otwiera projekt bezpośrednio (
 |---------|------------|--------------------|-----------|------------|------------|
 | `book`  | Photobook  | `Photobook`        | 305       | 7605       | 26         |
 | `cal`   | Calendar   | `Calendar`         | 220       | 5809       | 13         |
-| `frame` | Frame      | `Frame`            | 299       | 7365       | 1          |
+| `frame` | Frame      | `Frame`            | 304       | 7519       | 1          |
 
 Mapowanie id → productKey jest w `src/upload.jsx` (`PRODUCT_KEY_BY_ID`). Aktualne listy `PRODUCTS` po obu stronach muszą zgadzać się minimami — frontend nie pozwoli przejść dalej z mniejszą liczbą zdjęć niż backendowy minimum.
 
@@ -38,7 +38,7 @@ Mapowanie id → productKey jest w `src/upload.jsx` (`PRODUCT_KEY_BY_ID`). Aktua
 |-----------|-----------|------------|------------|
 | Photobook | 305       | 7605       | 26         |
 | Calendar  | 220       | 5809       | 13         |
-| Frame     | 299       | 7365       | 1          |
+| Frame     | 304       | 7519       | 1          |
 
 Domyślny zestaw zdjęć (concert gallery, hostowany na `storage.googleapis.com/pbx2-sales-demo`) jest wbudowany w backend i sliced do `min_photos` per produkt. Frontend może podać własne URL-e (textarea, jeden na linię) — wtedy override.
 
