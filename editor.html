@@ -563,12 +563,14 @@ function initEditor(cfg) {
     }
   }
 
-  if (cfg.customImageUrl) {
+  const personalizedComponents = {};
+  if (cfg.customImageUrl) personalizedComponents.customerImage1 = cfg.customImageUrl;
+  if (cfg.bandName) personalizedComponents.bandName = cfg.bandName;
+  if (cfg.concertDnV) personalizedComponents.concertDnV = cfg.concertDnV;
+  if (Object.keys(personalizedComponents).length > 0) {
     params.personalizedPresentationContent = {
       version: 1,
-      components: {
-        customerImage1: cfg.customImageUrl,
-      },
+      components: personalizedComponents,
     };
   }
 
@@ -589,6 +591,8 @@ function initEditor(cfg) {
   const familyId = params.get('familyId');
   const siteName = params.get('siteName');
   const customImageUrl = params.get('customImageUrl');
+  const bandName = params.get('bandName');
+  const concertDnV = params.get('concertDnV');
 
   if (!projectId || !familyId || !siteName) {
     document.getElementById('form').style.display = '';
@@ -608,6 +612,8 @@ function initEditor(cfg) {
     projectId,
     attrs: '',
     customImageUrl: customImageUrl || null,
+    bandName: bandName || null,
+    concertDnV: concertDnV || null,
   });
 })();
 </script>

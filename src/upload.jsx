@@ -281,6 +281,12 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           siteName: cpData.siteName,
         });
         if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
+        // Personalization text fields filled from concert metadata.
+        // Become personalizedPresentationContent.components.{bandName,concertDnV}.
+        if (concert.artist) urlParams.set('bandName', concert.artist);
+        if (concert.date || concert.venue) {
+          urlParams.set('concertDnV', [concert.date, concert.venue].filter(Boolean).join(' · '));
+        }
         window.location.href = '/editor.html?' + urlParams.toString();
       } catch (e) {
         if (cancelled) return;
