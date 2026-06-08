@@ -27,9 +27,9 @@ const PRODUCTS = [
   { id: 'book',  name: 'Photobook', sub: 'Hardcover · 28 pages', min: 26, max: 100, price: 'from $149', blurb: 'Your night, bound in print.', desc: 'Lay-flat hardcover on museum-grade matte paper — every spread opens edge to edge, so the night plays back full-bleed.',
     img: 'assets/photobook.jpg' },
   { id: 'cal',   name: 'Calendar',  sub: '12 months · A3',        min: 13, max: 36,  price: 'from $79',  blurb: 'A year in the pit.', desc: 'Twelve months, one show per page. Sturdy A3, wire-bound and ready to hang — relive it all year.',
-    img: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=600&q=72' },
+    img: 'assets/calendar.jpg' },
   { id: 'frame', name: 'Frame',     sub: 'Print · framed',        min: 1,  max: 1,   price: 'from $49',  blurb: 'One night, one print.', desc: 'A single hero shot, archival print framed in matte black — ready to hang the moment it arrives.',
-    img: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=600&q=72' },
+    img: 'assets/frame.jpg' },
 ];
 
 // stage-light gradient fallbacks (used behind every tile so nothing looks broken)
