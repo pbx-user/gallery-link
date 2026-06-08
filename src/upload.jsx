@@ -217,7 +217,17 @@ function UploadScreen({ desktop, product, own, setOwn, onBack, onFinish }) {
 }
 
 // Map UI product id → backend productKey (see api/create-project.js).
+// `frame` is handled specially — see frameProductKey() — to switch between
+// portrait / landscape / square Frame variants based on the chosen photo.
 const PRODUCT_KEY_BY_ID = { book: 'Photobook', cal: 'Calendar', frame: 'Frame' };
+
+// Photo `ar` is height/width. Tight band around 1.0 keeps almost-square
+// shots on the square frame; outside it we switch to the dedicated variant.
+function frameProductKey(photo) {
+  if (!photo || typeof photo.ar !== 'number') return 'Frame';
+  if (photo.ar >= 0.95 && photo.ar <= 1.05) return 'Frame';
+  return photo.ar > 1 ? 'FramePortrait' : 'FrameLandscape';
+}
 
 // Final handoff: upload personalization photo to Vercel Blob (if any), create
 // the project against Printbox, then redirect to /editor.html with the URL
@@ -232,13 +242,17 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
 
     (async () => {
       try {
-        const productKey = PRODUCT_KEY_BY_ID[product.id];
-        if (!productKey) throw new Error('Unknown product id: ' + product.id);
-
-        // Build photo URL list from selected IDs against the active concert.
-        const photoUrls = (selected ? [...selected] : [])
-          .map((id) => (concert.photos.find((p) => p.id === id) || {}).src)
+        // Build the ordered list of selected photos against the active concert
+        // first — we need it to pick the right Frame variant.
+        const selectedIds = selected ? [...selected] : [];
+        const selectedPhotos = selectedIds
+          .map((id) => concert.photos.find((p) => p.id === id))
           .filter(Boolean);
+        const photoUrls = selectedPhotos.map((p) => p.src);
+
+        let productKey = PRODUCT_KEY_BY_ID[product.id];
+        if (product.id === 'frame') productKey = frameProductKey(selectedPhotos[0]);
+        if (!productKey) throw new Error('Unknown product id: ' + product.id);
 
         // Optional: upload first own photo as personalization image.
         let customImageUrl = null;

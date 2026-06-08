@@ -3,9 +3,13 @@ const PBX_SITE_NAME = process.env.PBX_SITE_NAME || 'sales_demo';
 const PBX_STORE_ID = parseInt(process.env.PBX_STORE_ID || '1', 10);
 
 const PRODUCTS = {
-  Photobook: { family_id: 305, product_id: 7605, min_photos: 26 },
-  Calendar:  { family_id: 220, product_id: 5809, min_photos: 13 },
-  Frame:     { family_id: 304, product_id: 7519, min_photos: 1 },
+  Photobook:      { family_id: 305, product_id: 7605, min_photos: 26 },
+  Calendar:       { family_id: 220, product_id: 5809, min_photos: 13 },
+  // Frame variants share family_id 304; frontend picks the variant
+  // matching the selected photo's aspect ratio (DoneScreen).
+  Frame:          { family_id: 304, product_id: 7519, min_photos: 1 },  // square (default / fallback)
+  FramePortrait:  { family_id: 304, product_id: 7607, min_photos: 1 },  // h > w
+  FrameLandscape: { family_id: 304, product_id: 7606, min_photos: 1 },  // w > h
 };
 
 const DEMO_PHOTO_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery';
