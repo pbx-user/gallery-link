@@ -272,6 +272,9 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         if (cancelled) return;
 
         setStage('redirecting');
+        // Clear the persisted flow state so a future visit to `/` starts fresh
+        // and doesn't re-mount DoneScreen → re-fire the API.
+        try { localStorage.removeItem('encore'); } catch (_) {}
         const urlParams = new URLSearchParams({
           projectId: cpData.uuid,
           familyId: String(cpData.familyId),

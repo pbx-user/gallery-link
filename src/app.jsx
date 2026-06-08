@@ -35,7 +35,10 @@ function useMedia(q) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [screen, setScreen] = useS(saved.screen && saved.screen !== 'unlock' ? saved.screen : 'scan');
+  // Only restore "mid-flow" screens. `unlock` is an animation; `done` is a transient
+  // handoff that redirects to /editor.html — restoring it would re-fire the API.
+  const RESUMABLE = new Set(['scan', 'ticket', 'memories', 'upload']);
+  const [screen, setScreen] = useS(RESUMABLE.has(saved.screen) ? saved.screen : 'scan');
   const [productIdx, setProductIdx] = useS(saved.productIdx || 0);
   const [selected, setSelected] = useS(new Set(saved.selected || []));
   const [lightbox, setLightbox] = useS(null);

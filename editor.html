@@ -129,7 +129,7 @@
 </head>
 <body>
 
-<div class="wrap" id="form">
+<div class="wrap" id="form" style="display: none">
   <div class="card">
     <div class="card-header">
       <div class="titles">
@@ -581,14 +581,19 @@ function initEditor(cfg) {
   }
 }
 
-// Auto-restore: if URL has projectId+familyId+siteName, skip form and reopen the existing project
+// Auto-restore: if URL has projectId+familyId+siteName, skip form and reopen the existing project.
+// Otherwise reveal the manual config form (kept as a dev fallback).
 (function restoreFromUrl() {
   const params = new URLSearchParams(location.search);
   const projectId = params.get('projectId');
   const familyId = params.get('familyId');
   const siteName = params.get('siteName');
   const customImageUrl = params.get('customImageUrl');
-  if (!projectId || !familyId || !siteName) return;
+
+  if (!projectId || !familyId || !siteName) {
+    document.getElementById('form').style.display = '';
+    return;
+  }
 
   launchEditor({
     siteName,
