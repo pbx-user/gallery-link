@@ -587,12 +587,13 @@ function initEditor(cfg) {
   }
 }
 
-// Auto-restore: reopen the existing project when projectId is in the URL.
-// The Printbox editor strips our custom query params (familyId / siteName /
-// customImageUrl / bandName / concertDnV) when it pushes its own sub-paths,
-// so we keep a localStorage shadow keyed by projectId — on refresh we augment
-// the URL params from there. Reveal the manual form only when we have nothing.
+// Auto-restore: reopen an existing project from URL. Printbox only needs
+// projectId + productFamilyId — everything else (siteName for CDN, store,
+// currency, locale, personalization) has sensible defaults below. We still
+// keep a localStorage shadow keyed by projectId so a refresh after the editor
+// strips our query params can recover the personalization fields.
 const PBX_CTX_KEY = 'pbx-active-project';
+const DEFAULT_SITE_NAME = 'sales_demo';
 
 (function restoreFromUrl() {
   const params = new URLSearchParams(location.search);
@@ -603,7 +604,7 @@ const PBX_CTX_KEY = 'pbx-active-project';
   let bandName = params.get('bandName');
   let concertDnV = params.get('concertDnV');
 
-  if (projectId && (!familyId || !siteName)) {
+  if (projectId) {
     try {
       const saved = JSON.parse(localStorage.getItem(PBX_CTX_KEY) || '{}');
       if (saved.projectId === projectId) {
@@ -616,10 +617,11 @@ const PBX_CTX_KEY = 'pbx-active-project';
     } catch (_) {}
   }
 
-  if (!projectId || !familyId || !siteName) {
+  if (!projectId || !familyId) {
     document.getElementById('form').style.display = '';
     return;
   }
+  if (!siteName) siteName = DEFAULT_SITE_NAME;
 
   try {
     localStorage.setItem(PBX_CTX_KEY, JSON.stringify({
