@@ -587,21 +587,45 @@ function initEditor(cfg) {
   }
 }
 
-// Auto-restore: if URL has projectId+familyId+siteName, skip form and reopen the existing project.
-// Otherwise reveal the manual config form (kept as a dev fallback).
+// Auto-restore: reopen the existing project when projectId is in the URL.
+// The Printbox editor strips our custom query params (familyId / siteName /
+// customImageUrl / bandName / concertDnV) when it pushes its own sub-paths,
+// so we keep a localStorage shadow keyed by projectId — on refresh we augment
+// the URL params from there. Reveal the manual form only when we have nothing.
+const PBX_CTX_KEY = 'pbx-active-project';
+
 (function restoreFromUrl() {
   const params = new URLSearchParams(location.search);
-  const projectId = params.get('projectId');
-  const familyId = params.get('familyId');
-  const siteName = params.get('siteName');
-  const customImageUrl = params.get('customImageUrl');
-  const bandName = params.get('bandName');
-  const concertDnV = params.get('concertDnV');
+  let projectId = params.get('projectId');
+  let familyId = params.get('familyId');
+  let siteName = params.get('siteName');
+  let customImageUrl = params.get('customImageUrl');
+  let bandName = params.get('bandName');
+  let concertDnV = params.get('concertDnV');
+
+  if (projectId && (!familyId || !siteName)) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PBX_CTX_KEY) || '{}');
+      if (saved.projectId === projectId) {
+        familyId = familyId || saved.familyId;
+        siteName = siteName || saved.siteName;
+        customImageUrl = customImageUrl || saved.customImageUrl;
+        bandName = bandName || saved.bandName;
+        concertDnV = concertDnV || saved.concertDnV;
+      }
+    } catch (_) {}
+  }
 
   if (!projectId || !familyId || !siteName) {
     document.getElementById('form').style.display = '';
     return;
   }
+
+  try {
+    localStorage.setItem(PBX_CTX_KEY, JSON.stringify({
+      projectId, familyId, siteName, customImageUrl, bandName, concertDnV,
+    }));
+  } catch (_) {}
 
   launchEditor({
     siteName,
