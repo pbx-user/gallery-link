@@ -546,7 +546,11 @@ function initEditor(cfg) {
     translationsLanguage: cfg.language,
     contentLanguage: cfg.language,
     language: cfg.language,
-    ecommerceUrlPart: (location.origin + location.pathname).replace(/\/$/, ''),
+    // When refresh lands us on a sub-path the editor pushed (eg /editor/pic-frame),
+    // collapse back to the editor base so its router doesn't double-nest.
+    ecommerceUrlPart: location.pathname.match(/^\/editor(\/|$)/)
+      ? location.origin + '/editor'
+      : (location.origin + location.pathname).replace(/\/$/, ''),
     locale: cfg.locale,
     useIframe: false,
     forceTrailingSlashWhenGeneratingUrls: true,
