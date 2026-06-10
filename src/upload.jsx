@@ -217,8 +217,9 @@ function UploadScreen({ desktop, product, own, setOwn, onBack, onFinish }) {
 }
 
 // Map UI product id → backend productKey (see api/create-project.js).
-// `frame` is handled specially — see frameProductKey() — to switch between
-// portrait / landscape / square Frame variants based on the chosen photo.
+// `book` and `frame` are handled specially — see photobookProductKey() and
+// frameProductKey() — to switch between band-specific or orientation-specific
+// variants. The default keys here are the safe fallbacks.
 const PRODUCT_KEY_BY_ID = { book: 'Photobook', cal: 'Calendar', frame: 'Frame' };
 
 // Photo `ar` is height/width. Tight band around 1.0 keeps almost-square
@@ -227,6 +228,15 @@ function frameProductKey(photo) {
   if (!photo || typeof photo.ar !== 'number') return 'Frame';
   if (photo.ar >= 0.95 && photo.ar <= 1.05) return 'Frame';
   return photo.ar > 1 ? 'FramePortrait' : 'FrameLandscape';
+}
+
+// Each concert artist gets a dedicated Photobook product (theme / cover).
+function photobookProductKey(concert) {
+  switch (concert && concert.artist) {
+    case 'WITHERED CROWN': return 'PhotobookWithered';
+    case 'PULSE ENGINE':   return 'PhotobookPulse';
+    default:               return 'Photobook';
+  }
 }
 
 // Final handoff: upload personalization photo to Vercel Blob (if any), create
@@ -252,6 +262,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
 
         let productKey = PRODUCT_KEY_BY_ID[product.id];
         if (product.id === 'frame') productKey = frameProductKey(selectedPhotos[0]);
+        if (product.id === 'book')  productKey = photobookProductKey(concert);
         if (!productKey) throw new Error('Unknown product id: ' + product.id);
 
         // Optional: upload first own photo as personalization image.

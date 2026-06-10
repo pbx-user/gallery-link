@@ -24,13 +24,20 @@ Refresh / duplicate-tab na `/editor.html?...` re-otwiera projekt bezpośrednio (
 
 ## Produkty
 
-| UI id   | UI name    | Backend productKey                 | family_id | product_id        | min photos |
-|---------|------------|------------------------------------|-----------|-------------------|------------|
-| `book`  | Photobook  | `Photobook`                        | 305       | 7605              | 26         |
-| `cal`   | Calendar   | `Calendar`                         | 220       | 5809              | 13         |
-| `frame` | Frame      | `Frame` / `FramePortrait` / `FrameLandscape` | 304 | 7519 / 7607 / 7606 | 1          |
+| UI id   | UI name    | Backend productKey                                         | family_id | product_id                | min photos |
+|---------|------------|------------------------------------------------------------|-----------|---------------------------|------------|
+| `book`  | Photobook  | `Photobook` / `PhotobookWithered` / `PhotobookPulse`       | 305       | 7605 / 7609 / 7608        | 26         |
+| `cal`   | Calendar   | `Calendar`                                                 | 220       | 5809                      | 13         |
+| `frame` | Frame      | `Frame` / `FramePortrait` / `FrameLandscape`               | 304       | 7519 / 7607 / 7606        | 1          |
 
-Mapowanie id → productKey jest w `src/upload.jsx` (`PRODUCT_KEY_BY_ID` + `frameProductKey`). Dla Frame frontend wybiera wariant na bazie `ar` (height/width) wybranego zdjęcia:
+Mapowanie id → productKey jest w `src/upload.jsx` (`PRODUCT_KEY_BY_ID` + `frameProductKey` + `photobookProductKey`).
+
+**Photobook** wybiera wariant per zespół z `concert.artist`:
+- `'WITHERED CROWN'` → `PhotobookWithered` (7609)
+- `'PULSE ENGINE'` → `PhotobookPulse` (7608)
+- inne → `Photobook` (7605, fallback)
+
+**Frame** wybiera wariant na bazie `ar` (height/width) wybranego zdjęcia:
 - `ar ∈ [0.95, 1.05]` → `Frame` (square, 7519)
 - `ar > 1.05` → `FramePortrait` (7607)
 - `ar < 0.95` → `FrameLandscape` (7606)
