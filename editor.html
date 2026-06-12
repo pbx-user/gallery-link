@@ -546,11 +546,15 @@ function initEditor(cfg) {
     translationsLanguage: cfg.language,
     contentLanguage: cfg.language,
     language: cfg.language,
-    // When refresh lands us on a sub-path the editor pushed (eg /editor/pic-frame),
-    // collapse back to the editor base so its router doesn't double-nest.
-    ecommerceUrlPart: location.pathname.match(/^\/editor(\/|$)/)
-      ? location.origin + '/editor'
-      : (location.origin + location.pathname).replace(/\/$/, ''),
+    // Mirror the Printbox playground URL slug (/editor/playground) so the
+    // editor's internal routing matches their reference setup. Sub-paths
+    // pushed by the editor (eg /editor/playground/pic-frame) still collapse
+    // back to /editor/playground so we never double-nest on refresh.
+    ecommerceUrlPart: location.pathname.startsWith('/editor/playground')
+      ? location.origin + '/editor/playground'
+      : location.pathname.match(/^\/editor(\/|$)/)
+        ? location.origin + '/editor'
+        : (location.origin + location.pathname).replace(/\/$/, ''),
     locale: cfg.locale,
     useIframe: false,
     forceTrailingSlashWhenGeneratingUrls: true,

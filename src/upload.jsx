@@ -300,7 +300,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             photos: JSON.stringify(photosForEditor),
             ...personalizationParams,
           });
-          window.location.href = '/editor.html?' + urlParams.toString();
+          window.location.href = '/editor/playground?' + urlParams.toString();
           return;
         }
 
@@ -352,7 +352,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           ...personalizationParams,
         });
         if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
-        window.location.href = '/editor.html?' + urlParams.toString();
+        window.location.href = '/editor/playground?' + urlParams.toString();
       } catch (e) {
         if (cancelled) return;
         console.error('[done] handoff failed', e);
