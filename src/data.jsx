@@ -18,19 +18,70 @@ const EVENT_2 = {
   shooter: 'STROBE LAB',
 };
 
-// Three products wired through to the Printbox backend.
-// Each id maps in DoneScreen to a backend productKey:
-//   book → Photobook (family 305 / product 7605, min 26 photos)
-//   cal  → Calendar  (family 220 / product 5809, min 13 photos)
-//   frame→ Frame     (family 304 / product 7519, min 1  photo)
-const PRODUCTS = [
-  { id: 'book',  name: 'Photobook', sub: 'Hardcover · 28 pages', min: 26, max: 100, price: 'from $149', blurb: 'Your night, bound in print.', desc: 'Lay-flat hardcover on museum-grade matte paper — every spread opens edge to edge, so the night plays back full-bleed.',
-    img: 'assets/photobook.jpg' },
-  { id: 'cal',   name: 'Calendar',  sub: '12 months · A3',        min: 13, max: 36,  price: 'from $79',  blurb: 'A year in the pit.', desc: 'Twelve months, one show per page. Sturdy A3, wire-bound and ready to hang — relive it all year.',
-    img: 'assets/calendar.jpg' },
-  { id: 'frame', name: 'Frame',     sub: 'Print · framed',        min: 1,  max: 1,   price: 'from $49',  blurb: 'One night, one print.', desc: 'A single hero shot, archival print framed in matte black — ready to hang the moment it arrives.',
-    img: 'assets/frame.jpg' },
+// Frontend product list — replaced at runtime by loadProductsFromApi(), which
+// fetches /api/products (admin-managed) and overwrites the array contents in
+// place. DEFAULTS are the same set the backend seed ships with; they're the
+// fallback when /api/products is unreachable.
+//
+// Admin-managed fields: id, name, thumbnailUrl, familyId, productId | slug |
+// attributeValues, minPhotos, maxPhotos, variants[].
+// Frontend-only metadata (sub / price / blurb / desc) overlays from
+// PRODUCT_META below — keyed by id — so the cards stay nicely-decorated even
+// for products defined purely through admin.
+const DEFAULT_PRODUCTS = [
+  { id: 'book',  name: 'Photobook', thumbnailUrl: 'assets/photobook.jpg', familyId: '305', productId: '7605', minPhotos: 26, maxPhotos: 100 },
+  { id: 'cal',   name: 'Calendar',  thumbnailUrl: 'assets/calendar.jpg',  familyId: '220', productId: '5809', minPhotos: 13, maxPhotos: 36 },
+  { id: 'frame', name: 'Frame',     thumbnailUrl: 'assets/frame.jpg', minPhotos: 1, maxPhotos: 1,
+    variants: [
+      { orientation: 'landscape', familyId: '304', attributeValues: { orientation: 'horizontal', size: '12x8', theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch' } },
+      { orientation: 'portrait',  familyId: '304', attributeValues: { orientation: 'vertical',   size: '8x12', theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch' } },
+      { orientation: 'square',    familyId: '304', attributeValues: { orientation: 'square',     size: '10x10',theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch' } },
+    ] },
 ];
+
+// Per-id frontend chrome (subtitle / price / blurb / desc). Anything not in
+// here defaults to empty strings in the renderer.
+const PRODUCT_META = {
+  book:  { sub: 'Hardcover · 28 pages', price: 'from $149', blurb: 'Your night, bound in print.',
+           desc: 'Lay-flat hardcover on museum-grade matte paper — every spread opens edge to edge, so the night plays back full-bleed.' },
+  cal:   { sub: '12 months · A3',       price: 'from $79',  blurb: 'A year in the pit.',
+           desc: 'Twelve months, one show per page. Sturdy A3, wire-bound and ready to hang — relive it all year.' },
+  frame: { sub: 'Print · framed',       price: 'from $49',  blurb: 'One night, one print.',
+           desc: 'A single hero shot, archival print framed in matte black — ready to hang the moment it arrives.' },
+};
+
+// Map an admin product into the shape memories/scan/upload already speak:
+// img (was thumbnailUrl), min/max (was minPhotos/maxPhotos), plus chrome
+// overlay from PRODUCT_META.
+function decorateProduct(p) {
+  const meta = PRODUCT_META[p.id] || {};
+  return {
+    ...p,
+    img: p.thumbnailUrl || p.img || '',
+    min: p.minPhotos != null ? p.minPhotos : (p.min != null ? p.min : 1),
+    max: p.maxPhotos != null ? p.maxPhotos : (p.max != null ? p.max : 100),
+    sub:   p.sub   != null ? p.sub   : (meta.sub   || ''),
+    price: p.price != null ? p.price : (meta.price || ''),
+    blurb: p.blurb != null ? p.blurb : (meta.blurb || ''),
+    desc:  p.desc  != null ? p.desc  : (meta.desc  || ''),
+  };
+}
+
+const PRODUCTS = DEFAULT_PRODUCTS.map(decorateProduct);
+
+async function loadProductsFromApi() {
+  try {
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data.products) || data.products.length === 0) return;
+    const next = data.products.map(decorateProduct);
+    PRODUCTS.length = 0;
+    next.forEach((p) => PRODUCTS.push(p));
+  } catch (e) {
+    console.warn('[products] /api/products fetch failed, using defaults:', e);
+  }
+}
 
 // stage-light gradient fallbacks (used behind every tile so nothing looks broken)
 const GRADS = [
@@ -230,4 +281,4 @@ function ProductSheet({ product, onClose }) {
   );
 }
 
-Object.assign(window, { EVENT, EVENT_2, PRODUCTS, PHOTOS, PHOTOS_2, CONCERTS, concertForCode, Ic, Price, ProductSheet });
+Object.assign(window, { EVENT, EVENT_2, PRODUCTS, PHOTOS, PHOTOS_2, CONCERTS, concertForCode, Ic, Price, ProductSheet, loadProductsFromApi });

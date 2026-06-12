@@ -35,6 +35,16 @@ function useMedia(q) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  // Pull admin-managed product list from /api/products before we render the
+  // flow — without it the picker would briefly show the hardcoded defaults
+  // and then jump when the fetch lands.
+  const [productsReady, setProductsReady] = useS(false);
+  useE(() => {
+    let cancelled = false;
+    loadProductsFromApi().finally(() => { if (!cancelled) setProductsReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
   // Only restore "mid-flow" screens. `unlock` is an animation; `done` is a transient
   // handoff that redirects to /editor.html — restoring it would re-fire the API.
   const RESUMABLE = new Set(['scan', 'ticket', 'memories', 'upload']);
@@ -131,6 +141,14 @@ function App() {
     '--radius': t.corners === 'Sharp' ? '7px' : '20px',
     '--radius-sm': t.corners === 'Sharp' ? '5px' : '13px',
   };
+
+  if (!productsReady) {
+    return (
+      <div className={`app ${desktop ? 'is-desktop' : ''} ${t.grain ? 'app-grain' : ''}`} style={{ ...themeVars, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--ink-3)' }}>LOADING…</div>
+      </div>
+    );
+  }
 
   return (
     <div className={`app ${desktop ? 'is-desktop' : ''} ${t.grain ? 'app-grain' : ''} ${t.framing === 'Uniform' ? 'uniform-grid' : ''} ${revealed ? 'anims-done' : ''}`} style={themeVars}>

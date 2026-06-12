@@ -2,19 +2,10 @@ const PBX_BASE = process.env.PBX_BASE_URL || 'https://sales-demo-pbx2.getprintbo
 const PBX_SITE_NAME = process.env.PBX_SITE_NAME || 'sales_demo';
 const PBX_STORE_ID = parseInt(process.env.PBX_STORE_ID || '1', 10);
 
-const PRODUCTS = {
-  // Photobook variants share family_id 305; frontend picks per concert
-  // artist (DoneScreen → photobookProductKey).
-  Photobook:          { family_id: 305, product_id: 7605, min_photos: 26 },  // generic / fallback
-  PhotobookWithered:  { family_id: 305, product_id: 7609, min_photos: 26 },  // Withered Crown
-  PhotobookPulse:     { family_id: 305, product_id: 7608, min_photos: 26 },  // Pulse Engine
-  Calendar:           { family_id: 220, product_id: 5809, min_photos: 13 },
-  // Frame variants share family_id 304; frontend picks the variant
-  // matching the selected photo's aspect ratio (DoneScreen).
-  Frame:              { family_id: 304, product_id: 7519, min_photos: 1 },  // square (default / fallback)
-  FramePortrait:      { family_id: 304, product_id: 7607, min_photos: 1 },  // h > w
-  FrameLandscape:     { family_id: 304, product_id: 7606, min_photos: 1 },  // w > h
-};
+// Backend is stateless about which products exist — admin manages the list
+// in /api/products and the frontend hands us familyId + numeric productId
+// straight from there. Each request is validated and forwarded as-is to
+// POST /api/ec/v4/projects/.
 
 const DEMO_PHOTO_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery';
 const DEMO_PHOTO_SLUGS = [
@@ -127,7 +118,7 @@ function buildPhotoSources(custom, minRequired) {
   if (Array.isArray(custom) && custom.length > 0) {
     return custom.map(url => ({ original_photo_url: url }));
   }
-  return DEMO_PHOTOS.slice(0, Math.max(minRequired, 1));
+  return DEMO_PHOTOS.slice(0, Math.max(minRequired || 1, 1));
 }
 
 module.exports = async (req, res) => {
@@ -138,33 +129,26 @@ module.exports = async (req, res) => {
 
   try {
     const body = typeof req.body === 'string' ? safeJson(req.body) : (req.body || {});
-    const { productKey, photos, name } = body;
+    const { familyId, productId, photos, name } = body;
 
-    const product = PRODUCTS[productKey];
-    if (!product) {
+    const familyIdNum = parseInt(familyId, 10);
+    const productIdNum = parseInt(productId, 10);
+    if (!familyIdNum || !productIdNum) {
       res.status(400).json({
-        error: `Unknown productKey: ${productKey}`,
-        available: Object.keys(PRODUCTS),
+        error: 'familyId and productId (both numeric) are required in the body',
       });
       return;
     }
 
-    const sources = buildPhotoSources(photos, product.min_photos);
+    const sources = buildPhotoSources(photos, 1);
 
-    if (sources.length < product.min_photos) {
-      res.status(400).json({
-        error: `${productKey} wymaga co najmniej ${product.min_photos} zdjęć (otrzymano ${sources.length})`,
-      });
-      return;
-    }
-
-    const projectName = name || `Gallery Link ${productKey} ${Math.floor(Math.random() * 99999)}`;
+    const projectName = name || `Gallery Link ${Math.floor(Math.random() * 99999)}`;
 
     const payload = {
       name: projectName,
       store_id: PBX_STORE_ID,
-      family_id: product.family_id,
-      product_id: product.product_id,
+      family_id: familyIdNum,
+      product_id: productIdNum,
       photos: { sources },
     };
 
@@ -176,9 +160,8 @@ module.exports = async (req, res) => {
     res.status(200).json({
       uuid: project.uuid,
       siteName: PBX_SITE_NAME,
-      product: productKey,
-      familyId: product.family_id,
-      productId: product.product_id,
+      familyId: familyIdNum,
+      productId: productIdNum,
       photoCount: sources.length,
       project: {
         id: project.id,

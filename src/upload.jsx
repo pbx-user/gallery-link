@@ -216,45 +216,23 @@ function UploadScreen({ desktop, product, own, setOwn, onBack, onFinish }) {
   );
 }
 
-// Map UI product id → backend productKey (see api/create-project.js).
-// `book` and `frame` are handled specially — see photobookProductKey() and
-// frameProductKey() — to switch between band-specific or orientation-specific
-// variants. The default keys here are the safe fallbacks.
-const PRODUCT_KEY_BY_ID = { book: 'Photobook', cal: 'Calendar', frame: 'Frame' };
-
 // Photo `ar` is height/width. Tight band around 1.0 keeps almost-square
-// shots on the square frame; outside it we switch to the dedicated variant.
-function frameProductKey(photo) {
-  if (!photo || typeof photo.ar !== 'number') return 'Frame';
-  if (photo.ar >= 0.95 && photo.ar <= 1.05) return 'Frame';
-  return photo.ar > 1 ? 'FramePortrait' : 'FrameLandscape';
+// shots on the square variant; outside it we switch by axis.
+function photoOrientation(photo) {
+  if (!photo || typeof photo.ar !== 'number') return 'landscape';
+  if (photo.ar >= 0.95 && photo.ar <= 1.05) return 'square';
+  return photo.ar > 1 ? 'portrait' : 'landscape';
 }
 
-const FRAME_FAMILY_ID = '304';
-// Per-variant attributeValues — setEditorConfig uses these to pick the
-// product within family 304 without needing a productId. Per docs:
-// "Creates a project with a selected combination of attributes. The steps
-// before the editor are then not displayed."
-// Values for horizontal taken from a working Printbox example; vertical /
-// square are best guesses — adjust if Printbox admin uses different keys.
-const FRAME_ATTRS_COMMON = {
-  theme: 'concertFrame',
-  frameColor: 'black',
-  frameThickness: '1inch',
-};
-const FRAME_ATTRS = {
-  FrameLandscape: { ...FRAME_ATTRS_COMMON, orientation: 'horizontal', size: '12x8' },
-  FramePortrait:  { ...FRAME_ATTRS_COMMON, orientation: 'vertical',   size: '8x12' },
-  Frame:          { ...FRAME_ATTRS_COMMON, orientation: 'square',     size: '10x10' },
-};
-
-// Each concert artist gets a dedicated Photobook product (theme / cover).
-function photobookProductKey(concert) {
-  switch (concert && concert.artist) {
-    case 'WITHERED CROWN': return 'PhotobookWithered';
-    case 'PULSE ENGINE':   return 'PhotobookPulse';
-    default:               return 'Photobook';
+// For a product fetched from /api/products, pick the actual spec block that
+// will drive setEditorConfig. Variant products carry an array keyed by
+// orientation; flat products carry the spec at the top level.
+function pickProductSpec(product, firstPhoto) {
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    const ori = photoOrientation(firstPhoto);
+    return product.variants.find((v) => v.orientation === ori) || product.variants[0];
   }
+  return product;
 }
 
 // Final handoff: upload personalization photo to Vercel Blob (if any), create
@@ -286,15 +264,16 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           personalizationParams.concertDnV = [concert.date, concert.venue].filter(Boolean).join(' · ');
         }
 
-        // ── Simple products (Frame): skip backend project creation. Pass
-        // productFamilyId + attributeValues + photosToUploadForNewProject and
-        // let the editor build the project itself. attributeValues replaces
-        // productId — the editor picks the variant inside family 304 from the
-        // attribute combination and skips the pre-editor steps automatically.
-        if (product.id === 'frame') {
+        const spec = pickProductSpec(product, selectedPhotos[0]);
+        const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+        const useEditorDirect = hasVariants || !!spec.attributeValues || !!spec.slug || !spec.productId;
+
+        // ── Editor-direct flow: variants, slug-only, or attributeValues-only
+        // products. The editor builds the project itself from
+        // productFamilyId + (productId | attributeValues) + photos.
+        if (useEditorDirect) {
           setStage('redirecting');
           try { localStorage.removeItem('encore'); } catch (_) {}
-          const variantKey = frameProductKey(selectedPhotos[0]);
           const photosForEditor = selectedPhotos.map((p) => ({
             id: p.id,
             name: (p.frame ? p.frame : p.id) + '.jpg',
@@ -302,23 +281,24 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             publishTime: Date.now(),
           }));
           const urlParams = new URLSearchParams({
-            familyId: FRAME_FAMILY_ID,
+            familyId: String(spec.familyId),
             siteName: 'sales_demo',
-            attributeValues: JSON.stringify(FRAME_ATTRS[variantKey] || FRAME_ATTRS.Frame),
             photos: JSON.stringify(photosForEditor),
             ...personalizationParams,
           });
+          if (spec.attributeValues) urlParams.set('attributeValues', JSON.stringify(spec.attributeValues));
+          // setEditorConfig wants productId as a friendly_url. Slug goes through
+          // verbatim; numeric productId is included as a fallback even though it
+          // tends to 404 — admin can switch to slug or attributeValues if so.
+          if (spec.slug) urlParams.set('productId', spec.slug);
+          else if (spec.productId) urlParams.set('productId', String(spec.productId));
           window.location.href = '/editor/playground?' + urlParams.toString();
           return;
         }
 
-        // ── Multi-photo products (Photobook / Calendar): backend creates the
-        // project, we hand projectId off to the editor. URL stays short.
-        let productKey = PRODUCT_KEY_BY_ID[product.id];
-        if (product.id === 'book') productKey = photobookProductKey(concert);
-        if (!productKey) throw new Error('Unknown product id: ' + product.id);
-
-        // Optional: upload first own photo as personalization image.
+        // ── Backend-creation flow: flat product with a numeric productId.
+        // Backend POSTs /api/ec/v4/projects/ with photo sources (auto-placed),
+        // returns a UUID we hand off to the editor.
         let customImageUrl = null;
         const ownFile = own && own.length > 0 ? own[0].file : null;
         if (ownFile) {
@@ -339,7 +319,12 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         const cpRes = await fetch('/api/create-project', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productKey, photos: photoUrls }),
+          body: JSON.stringify({
+            familyId: spec.familyId,
+            productId: spec.productId,
+            photos: photoUrls,
+            name: 'Gallery Link ' + product.name,
+          }),
         });
         const cpData = await cpRes.json().catch(() => ({}));
         if (!cpRes.ok) {
@@ -350,8 +335,6 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         if (cancelled) return;
 
         setStage('redirecting');
-        // Clear the persisted flow state so a future visit to `/` starts fresh
-        // and doesn't re-mount DoneScreen → re-fire the API.
         try { localStorage.removeItem('encore'); } catch (_) {}
         const urlParams = new URLSearchParams({
           projectId: cpData.uuid,
