@@ -55,7 +55,37 @@ const P = (id, ar, opt = {}) => ({
   frame: opt.frame,
 });
 
+// Real Withered Crown gallery uploaded to GCS (2026-06-12). The bucket path
+// uses "witthered" (two t's) intentionally — that's how the assets are
+// stored on the server; do not "correct" the spelling here.
+const WC_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery/witthered-crown';
+const WC = (slug, w, h, opt = {}) => ({
+  id: 'wc-' + slug,
+  src: `${WC_BASE}/${slug}.jpg`,
+  ar: h / w,
+  hero: !!opt.hero,
+  pick: !!opt.pick,
+  grad: GRADS[(opt.g ?? 0) % GRADS.length],
+  frame: opt.frame,
+});
+
+// Curated set shown first to Withered Crown viewers. Heroes = full-width
+// in the masonry; pick = preselected by "Select recommended".
+const WITHERED_PHOTOS = [
+  WC('7drums', 768, 1376, { hero: true, pick: true, g: 0, frame: 'WC01' }),
+  WC('6',      1024, 1024, { pick: true,             g: 1, frame: 'WC02' }),
+  WC('3',      1408, 768,  { hero: true,             g: 2, frame: 'WC03' }),
+  WC('5',      1024, 1024, { pick: true,             g: 3, frame: 'WC04' }),
+  WC('1',      1408, 768,  { hero: true, pick: true, g: 4, frame: 'WC05' }),
+  WC('8',      768, 1376,  {                         g: 5, frame: 'WC06' }),
+  WC('4',      1024, 1024, {                         g: 0, frame: 'WC07' }),
+  WC('2',      1408, 768,  {                         g: 1, frame: 'WC08' }),
+];
+
 const PHOTOS = [
+  // Real Withered Crown shots — always first in the gallery for this concert.
+  ...WITHERED_PHOTOS,
+  // Unsplash placeholders padding the set out to Photobook's 26-photo minimum.
   P('1470229722913-7c0e2dbbafd3', 0.62, { hero: true, pick: true, g: 0, frame: '0118' }),
   P('1501386761578-eac5c94b800a', 1.30, { pick: true, g: 1, frame: '0204' }),
   P('1459749411175-04bf5292ceea', 1.05, { g: 2, frame: '0231' }),
