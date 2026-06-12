@@ -252,17 +252,48 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
 
     (async () => {
       try {
-        // Build the ordered list of selected photos against the active concert
-        // first — we need it to pick the right Frame variant.
+        // Build the ordered list of selected photos against the active concert.
         const selectedIds = selected ? [...selected] : [];
         const selectedPhotos = selectedIds
           .map((id) => concert.photos.find((p) => p.id === id))
           .filter(Boolean);
         const photoUrls = selectedPhotos.map((p) => p.src);
 
+        if (cancelled) return;
+
+        // Personalization text fields shared by both branches.
+        const personalizationParams = {};
+        if (concert.artist) personalizationParams.bandName = concert.artist;
+        if (concert.date || concert.venue) {
+          personalizationParams.concertDnV = [concert.date, concert.venue].filter(Boolean).join(' · ');
+        }
+
+        // ── Simple products (Frame): skip backend project creation. Pass
+        // productFamilyId + photosToUploadForNewProject and let the editor
+        // build the project itself. Cheaper round-trip, no UUID handoff.
+        if (product.id === 'frame') {
+          setStage('redirecting');
+          try { localStorage.removeItem('encore'); } catch (_) {}
+          const photosForEditor = selectedPhotos.map((p) => ({
+            id: p.id,
+            name: (p.frame ? p.frame : p.id) + '.jpg',
+            downloadUrl: p.src,
+            publishTime: Date.now(),
+          }));
+          const urlParams = new URLSearchParams({
+            familyId: '304',
+            siteName: 'sales_demo',
+            photos: JSON.stringify(photosForEditor),
+            ...personalizationParams,
+          });
+          window.location.href = '/editor.html?' + urlParams.toString();
+          return;
+        }
+
+        // ── Multi-photo products (Photobook / Calendar): backend creates the
+        // project, we hand projectId off to the editor. URL stays short.
         let productKey = PRODUCT_KEY_BY_ID[product.id];
-        if (product.id === 'frame') productKey = frameProductKey(selectedPhotos[0]);
-        if (product.id === 'book')  productKey = photobookProductKey(concert);
+        if (product.id === 'book') productKey = photobookProductKey(concert);
         if (!productKey) throw new Error('Unknown product id: ' + product.id);
 
         // Optional: upload first own photo as personalization image.
@@ -304,14 +335,9 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           projectId: cpData.uuid,
           familyId: String(cpData.familyId),
           siteName: cpData.siteName,
+          ...personalizationParams,
         });
         if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
-        // Personalization text fields filled from concert metadata.
-        // Become personalizedPresentationContent.components.{bandName,concertDnV}.
-        if (concert.artist) urlParams.set('bandName', concert.artist);
-        if (concert.date || concert.venue) {
-          urlParams.set('concertDnV', [concert.date, concert.venue].filter(Boolean).join(' · '));
-        }
         window.location.href = '/editor.html?' + urlParams.toString();
       } catch (e) {
         if (cancelled) return;

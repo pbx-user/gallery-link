@@ -559,6 +559,14 @@ function initEditor(cfg) {
   if (cfg.moduleId) params.moduleId = cfg.moduleId;
   if (cfg.productId) params.productId = cfg.productId;
 
+  // For "editor creates the project" flow (simple products like Frame) we
+  // hand a sidebar-ready photo list to setEditorConfig — only meaningful
+  // when projectId is empty (otherwise the photos already live in the saved
+  // project state).
+  if (!cfg.projectId && Array.isArray(cfg.photosToUploadForNewProject) && cfg.photosToUploadForNewProject.length > 0) {
+    params.photosToUploadForNewProject = cfg.photosToUploadForNewProject;
+  }
+
   if (cfg.attrs && !cfg.projectId) {
     try {
       params.attributeValues = JSON.parse(cfg.attrs);
@@ -587,11 +595,13 @@ function initEditor(cfg) {
   }
 }
 
-// Auto-restore: reopen an existing project from URL. Printbox only needs
-// projectId + productFamilyId — everything else (siteName for CDN, store,
-// currency, locale, personalization) has sensible defaults below. We still
-// keep a localStorage shadow keyed by projectId so a refresh after the editor
-// strips our query params can recover the personalization fields.
+// Auto-restore: either reopen an existing project (projectId + familyId)
+// or kick off a new one inside the editor (familyId + photos JSON). The
+// editor handles project creation itself in the second path — no backend
+// round-trip. Everything else (siteName for CDN, store, currency, locale,
+// personalization) has sensible defaults below. localStorage shadow keyed
+// by projectId recovers personalization fields when the editor strips our
+// query params on its own URL pushes.
 const PBX_CTX_KEY = 'pbx-active-project';
 const DEFAULT_SITE_NAME = 'sales_demo';
 
@@ -603,6 +613,7 @@ const DEFAULT_SITE_NAME = 'sales_demo';
   let customImageUrl = params.get('customImageUrl');
   let bandName = params.get('bandName');
   let concertDnV = params.get('concertDnV');
+  const photosParam = params.get('photos');
 
   if (projectId) {
     try {
@@ -617,17 +628,29 @@ const DEFAULT_SITE_NAME = 'sales_demo';
     } catch (_) {}
   }
 
-  if (!projectId || !familyId) {
+  // Need at minimum a familyId, plus either an existing projectId OR a photo
+  // list to seed a new project with. Anything less → show the manual form.
+  if (!familyId || (!projectId && !photosParam)) {
     document.getElementById('form').style.display = '';
     return;
   }
   if (!siteName) siteName = DEFAULT_SITE_NAME;
 
-  try {
-    localStorage.setItem(PBX_CTX_KEY, JSON.stringify({
-      projectId, familyId, siteName, customImageUrl, bandName, concertDnV,
-    }));
-  } catch (_) {}
+  let photosToUploadForNewProject = null;
+  if (!projectId && photosParam) {
+    try { photosToUploadForNewProject = JSON.parse(photosParam); }
+    catch (e) { console.warn('[editor] could not parse ?photos=', e); }
+  }
+
+  // Only cache existing-project context — new-project flows don't have a
+  // UUID yet, the editor will assign one after createProject completes.
+  if (projectId) {
+    try {
+      localStorage.setItem(PBX_CTX_KEY, JSON.stringify({
+        projectId, familyId, siteName, customImageUrl, bandName, concertDnV,
+      }));
+    } catch (_) {}
+  }
 
   launchEditor({
     siteName,
@@ -639,11 +662,12 @@ const DEFAULT_SITE_NAME = 'sales_demo';
     locale: 'en-us',
     language: 'en',
     sessionId: '',
-    projectId,
+    projectId: projectId || '',
     attrs: '',
     customImageUrl: customImageUrl || null,
     bandName: bandName || null,
     concertDnV: concertDnV || null,
+    photosToUploadForNewProject,
   });
 })();
 </script>
