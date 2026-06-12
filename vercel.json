@@ -2,6 +2,7 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/editor", "destination": "/editor.html" },
-    { "source": "/editor/:path*", "destination": "/editor.html" }
+    { "source": "/editor/:path*", "destination": "/editor.html" },
+    { "source": "/admin", "destination": "/admin.html" }
   ]
 }

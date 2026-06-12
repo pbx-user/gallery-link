@@ -1,0 +1,150 @@
+const { put, list } = require('@vercel/blob');
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'pbxadmin';
+const PRODUCTS_PATH = 'gallery-link/products.json';
+
+// Seed used the very first time admin loads and no blob exists yet.
+// Mirrors the hardcoded set the frontend currently ships with.
+const DEFAULT_PRODUCTS = [
+  {
+    id: 'book',
+    name: 'Photobook',
+    thumbnailUrl: 'assets/photobook.jpg',
+    familyId: '305',
+    productId: '7605',
+    minPhotos: 26,
+    maxPhotos: 100,
+  },
+  {
+    id: 'cal',
+    name: 'Calendar',
+    thumbnailUrl: 'assets/calendar.jpg',
+    familyId: '220',
+    productId: '5809',
+    minPhotos: 13,
+    maxPhotos: 36,
+  },
+  {
+    id: 'frame',
+    name: 'Frame',
+    thumbnailUrl: 'assets/frame.jpg',
+    familyId: '304',
+    attributeValues: {
+      orientation: 'horizontal',
+      size: '12x8',
+      theme: 'concertFrame',
+      frameColor: 'black',
+      frameThickness: '1inch',
+    },
+    minPhotos: 1,
+    maxPhotos: 1,
+  },
+];
+
+let cached = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 5_000;
+
+async function readProducts() {
+  if (cached && Date.now() - cachedAt < CACHE_TTL_MS) return cached;
+
+  try {
+    const result = await list({ prefix: PRODUCTS_PATH });
+    const blob = (result.blobs || []).find((b) => b.pathname === PRODUCTS_PATH);
+    if (!blob) {
+      cached = DEFAULT_PRODUCTS;
+      cachedAt = Date.now();
+      return cached;
+    }
+    const res = await fetch(blob.url);
+    if (!res.ok) throw new Error('Blob fetch failed: ' + res.status);
+    const products = await res.json();
+    cached = products;
+    cachedAt = Date.now();
+    return products;
+  } catch (e) {
+    console.error('[products] read error', e);
+    return DEFAULT_PRODUCTS;
+  }
+}
+
+async function writeProducts(products) {
+  await put(PRODUCTS_PATH, JSON.stringify(products, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    allowOverwrite: true,
+    addRandomSuffix: false,
+  });
+  cached = products;
+  cachedAt = Date.now();
+}
+
+function validateProduct(p, idx) {
+  if (!p || typeof p !== 'object') return `products[${idx}] must be an object`;
+  if (!p.id || typeof p.id !== 'string') return `products[${idx}].id is required (string)`;
+  if (!p.name || typeof p.name !== 'string') return `products[${idx}].name is required (string)`;
+  if (!p.familyId) return `products[${idx}].familyId is required`;
+  const hasProductId = p.productId && String(p.productId).trim().length > 0;
+  const hasSlug = p.slug && String(p.slug).trim().length > 0;
+  const hasAttrs = p.attributeValues && typeof p.attributeValues === 'object' && Object.keys(p.attributeValues).length > 0;
+  if (!hasProductId && !hasSlug && !hasAttrs) {
+    return `products[${idx}] (${p.id}) needs one of: productId, slug, attributeValues`;
+  }
+  if (typeof p.minPhotos !== 'number' || p.minPhotos < 1) {
+    return `products[${idx}] (${p.id}).minPhotos must be a positive number`;
+  }
+  return null;
+}
+
+module.exports = async (req, res) => {
+  if (req.method === 'GET') {
+    try {
+      const products = await readProducts();
+      res.status(200).json({ products });
+    } catch (e) {
+      console.error('[products] GET error', e);
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' || req.method === 'PUT') {
+    const password = req.headers['x-admin-password'];
+    if (!password || password !== ADMIN_PASSWORD) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+      const products = body.products;
+      if (!Array.isArray(products)) {
+        res.status(400).json({ error: 'Body must include "products" array' });
+        return;
+      }
+
+      const seenIds = new Set();
+      for (let i = 0; i < products.length; i++) {
+        const err = validateProduct(products[i], i);
+        if (err) {
+          res.status(400).json({ error: err });
+          return;
+        }
+        if (seenIds.has(products[i].id)) {
+          res.status(400).json({ error: `Duplicate product id: ${products[i].id}` });
+          return;
+        }
+        seenIds.add(products[i].id);
+      }
+
+      await writeProducts(products);
+      res.status(200).json({ saved: true, count: products.length });
+    } catch (e) {
+      console.error('[products] POST error', e);
+      res.status(500).json({ error: e.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed' });
+};
