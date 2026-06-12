@@ -100,6 +100,29 @@
   .head-row .nav { display: flex; gap: 8px; }
   .login-form { max-width: 360px; margin: 0 auto; }
   .login-form input { margin-bottom: 14px; }
+  .checkbox-line {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: 13px; color: var(--text); margin: 4px 0 4px;
+    text-transform: none; letter-spacing: 0; font-weight: 500;
+  }
+  .checkbox-line input[type="checkbox"] { width: auto; margin: 0; cursor: pointer; accent-color: var(--accent); }
+  .variant-row {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 10px; background: #14151a;
+    position: relative;
+  }
+  .variant-row .variant-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; gap: 10px;
+  }
+  .variant-row .variant-head strong {
+    font-size: 12px; color: var(--faint); text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .variant-row input, .variant-row select, .variant-row textarea { margin-bottom: 8px; }
+  .variant-row .radio-row { padding: 2px 0 8px; }
+  .variant-row .spec-block { padding-left: 0; }
+  .variant-row textarea { min-height: 70px; }
 </style>
 </head>
 <body>
@@ -165,11 +188,7 @@
       <label for="f_thumb">Thumbnail URL *</label>
       <input id="f_thumb" required placeholder="https://… lub assets/photobook.jpg">
 
-      <div class="row-3">
-        <div>
-          <label for="f_family">productFamilyId *</label>
-          <input id="f_family" required placeholder="305">
-        </div>
+      <div class="row">
         <div>
           <label for="f_min">Min photos *</label>
           <input id="f_min" type="number" min="1" required placeholder="26">
@@ -180,50 +199,51 @@
         </div>
       </div>
 
-      <label>Specyfikacja produktu (wybierz jedną) *</label>
-      <div class="radio-row">
-        <label><input type="radio" name="spec" value="productId" checked> productId (numeric)</label>
-        <label><input type="radio" name="spec" value="slug"> slug (friendly_url)</label>
-        <label><input type="radio" name="spec" value="attributeValues"> attributeValues</label>
-      </div>
+      <label class="checkbox-line">
+        <input type="checkbox" id="f_useVariants">
+        <span>Multiple variants (auto-pick by photo orientation)</span>
+      </label>
+      <div class="hint">Włącz dla produktu który ma osobne ustawienia per orientacja zdjęcia (np. Frame portrait/landscape/square). Front pokaże jedną kartę i sam wybierze variant na bazie wybranego zdjęcia.</div>
 
-      <div class="spec-block active" data-spec="productId">
-        <label for="f_productId">Numeric product_id</label>
-        <input id="f_productId" placeholder="7605">
-        <div class="hint">Liczbowy ID produktu z Printboxa, jako string. Edytor traktuje go jak friendly_url — może 404'ować, sprawdź u siebie.</div>
-      </div>
+      <!-- ── Flat product spec (when "Multiple variants" is off) ── -->
+      <div id="flatSpec">
+        <label for="f_family">productFamilyId *</label>
+        <input id="f_family" placeholder="305">
 
-      <div class="spec-block" data-spec="slug">
-        <label for="f_slug">friendly_url slug</label>
-        <input id="f_slug" placeholder="photobook-pulse">
-        <div class="hint">Slug z <code>GET /api/ec/v4/products/{id}/</code> → <code>friendly_url</code>.</div>
-      </div>
-
-      <div class="spec-block" data-spec="attributeValues">
-        <label for="f_attrs">attributeValues (JSON)</label>
-        <textarea id="f_attrs" placeholder='{"orientation": "horizontal", "size": "12x8", "theme": "concertFrame"}'></textarea>
-        <div class="hint">JSON-owy obiekt z kluczami atrybutów (orientation, size, theme, frameColor, frameThickness...).</div>
-      </div>
-
-      <label>Variant (opcjonalne)</label>
-      <div class="row">
-        <div>
-          <label for="f_variantGroup" style="text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 11px; font-weight: 500;">variantGroup</label>
-          <input id="f_variantGroup" placeholder="frame">
+        <label>Specyfikacja produktu (wybierz jedną) *</label>
+        <div class="radio-row">
+          <label><input type="radio" name="spec" value="productId" checked> productId (numeric)</label>
+          <label><input type="radio" name="spec" value="slug"> slug (friendly_url)</label>
+          <label><input type="radio" name="spec" value="attributeValues"> attributeValues</label>
         </div>
-        <div>
-          <label for="f_variantOrientation" style="text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 11px; font-weight: 500;">variantOrientation</label>
-          <select id="f_variantOrientation">
-            <option value="">— (none)</option>
-            <option value="portrait">portrait (h &gt; w)</option>
-            <option value="landscape">landscape (w &gt; h)</option>
-            <option value="square">square (h ≈ w)</option>
-          </select>
+
+        <div class="spec-block active" data-spec="productId">
+          <label for="f_productId">Numeric product_id</label>
+          <input id="f_productId" placeholder="7605">
+          <div class="hint">Liczbowy ID produktu z Printboxa, jako string. Edytor traktuje go jak friendly_url — może 404'ować, sprawdź u siebie.</div>
+        </div>
+
+        <div class="spec-block" data-spec="slug">
+          <label for="f_slug">friendly_url slug</label>
+          <input id="f_slug" placeholder="photobook-pulse">
+          <div class="hint">Slug z <code>GET /api/ec/v4/products/{id}/</code> → <code>friendly_url</code>.</div>
+        </div>
+
+        <div class="spec-block" data-spec="attributeValues">
+          <label for="f_attrs">attributeValues (JSON)</label>
+          <textarea id="f_attrs" placeholder='{"orientation": "horizontal", "size": "12x8", "theme": "concertFrame"}'></textarea>
+          <div class="hint">JSON-owy obiekt z kluczami atrybutów (orientation, size, theme, frameColor, frameThickness...).</div>
         </div>
       </div>
-      <div class="hint">Produkty z tym samym <code>variantGroup</code> tworzą jedną kartę na froncie. Front wybiera variant na podstawie orientacji wybranego zdjęcia (<code>variantOrientation</code>). Zostaw puste dla zwykłego produktu bez wariantów.</div>
 
-      <div class="actions">
+      <!-- ── Variants editor (when "Multiple variants" is on) ── -->
+      <div id="variantsSpec" style="display: none;">
+        <label>Variants <span style="color: var(--faint); font-weight: 400; font-size: 11px;">— jeden zestaw per orientacja zdjęcia</span></label>
+        <div id="variantsList"></div>
+        <button type="button" class="btn btn-secondary btn-small" id="addVariantBtn" style="margin-top: 4px;">+ Dodaj variant</button>
+      </div>
+
+      <div class="actions" style="margin-top: 20px;">
         <button type="submit" class="btn">Zapisz produkt</button>
         <button type="button" class="btn btn-secondary" id="cancelEditBtn2">Anuluj</button>
       </div>
@@ -349,18 +369,22 @@ function renderList() {
   products.forEach((p, idx) => {
     const row = document.createElement('div');
     row.className = 'product-row';
-    const spec = p.productId ? 'productId: ' + p.productId
-      : p.slug ? 'slug: ' + p.slug
-      : p.attributeValues ? 'attrs: ' + Object.keys(p.attributeValues).length + ' keys'
-      : '(brak spec)';
-    const variantTag = p.variantGroup
-      ? ` · variant: ${escapeText(p.variantGroup)}${p.variantOrientation ? '/' + escapeText(p.variantOrientation) : ''}`
-      : '';
+    let detailsLine;
+    if (Array.isArray(p.variants) && p.variants.length > 0) {
+      const oris = p.variants.map((v) => v.orientation).join(' / ');
+      detailsLine = `${p.variants.length} variants (${escapeText(oris)}) · min ${p.minPhotos}${p.maxPhotos ? ' / max ' + p.maxPhotos : ''}`;
+    } else {
+      const spec = p.productId ? 'productId: ' + p.productId
+        : p.slug ? 'slug: ' + p.slug
+        : p.attributeValues ? 'attrs: ' + Object.keys(p.attributeValues).length + ' keys'
+        : '(brak spec)';
+      detailsLine = `family ${escapeText(p.familyId)} · ${escapeText(spec)} · min ${p.minPhotos}${p.maxPhotos ? ' / max ' + p.maxPhotos : ''}`;
+    }
     row.innerHTML = `
       <img src="${escapeAttr(p.thumbnailUrl || '')}" alt="" onerror="this.style.opacity=0">
       <div class="meta">
         <div class="name">${escapeText(p.name)} <span style="color: var(--faint); font-weight: 400; font-size: 12px;">(${escapeText(p.id)})</span></div>
-        <div class="details">family ${escapeText(p.familyId)} · ${escapeText(spec)} · min ${p.minPhotos}${p.maxPhotos ? ' / max ' + p.maxPhotos : ''}${variantTag}</div>
+        <div class="details">${detailsLine}</div>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-secondary btn-small" data-edit="${idx}">Edytuj</button>
@@ -388,29 +412,151 @@ function openEditor(idx) {
   $('editorCard').style.display = '';
 
   $('f_id').value = p ? p.id : '';
-  $('f_id').disabled = !!p;  // don't allow renaming
+  $('f_id').disabled = !!p;
   $('f_name').value = p ? p.name : '';
   $('f_thumb').value = p ? (p.thumbnailUrl || '') : '';
-  $('f_family').value = p ? (p.familyId || '') : '';
   $('f_min').value = p ? (p.minPhotos != null ? p.minPhotos : '') : '';
   $('f_max').value = p && p.maxPhotos != null ? p.maxPhotos : '';
 
+  // Variant mode vs flat mode toggle
+  const hasVariants = !!(p && Array.isArray(p.variants) && p.variants.length > 0);
+  $('f_useVariants').checked = hasVariants;
+  toggleVariantsMode(hasVariants);
+
+  // Flat fields (used when not in variants mode)
+  $('f_family').value = p && !hasVariants ? (p.familyId || '') : '';
   let spec = 'productId';
-  if (p) {
+  if (p && !hasVariants) {
     if (p.attributeValues) spec = 'attributeValues';
     else if (p.slug) spec = 'slug';
   }
-  document.querySelectorAll('input[name="spec"]').forEach((r) => r.checked = (r.value === spec));
+  document.querySelectorAll('#flatSpec input[name="spec"]').forEach((r) => r.checked = (r.value === spec));
   switchSpec(spec);
+  $('f_productId').value = p && !hasVariants && p.productId ? p.productId : '';
+  $('f_slug').value = p && !hasVariants && p.slug ? p.slug : '';
+  $('f_attrs').value = p && !hasVariants && p.attributeValues ? JSON.stringify(p.attributeValues, null, 2) : '';
 
-  $('f_productId').value = p && p.productId ? p.productId : '';
-  $('f_slug').value = p && p.slug ? p.slug : '';
-  $('f_attrs').value = p && p.attributeValues ? JSON.stringify(p.attributeValues, null, 2) : '';
-
-  $('f_variantGroup').value = p && p.variantGroup ? p.variantGroup : '';
-  $('f_variantOrientation').value = p && p.variantOrientation ? p.variantOrientation : '';
+  // Variants list
+  $('variantsList').innerHTML = '';
+  if (hasVariants) {
+    p.variants.forEach((v) => addVariantRow(v));
+  }
 
   $('editorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleVariantsMode(on) {
+  $('flatSpec').style.display = on ? 'none' : '';
+  $('variantsSpec').style.display = on ? '' : 'none';
+  $('f_family').required = !on;
+}
+
+function addVariantRow(v) {
+  const list = $('variantsList');
+  const row = document.createElement('div');
+  row.className = 'variant-row';
+  const usedOrientations = Array.from(list.querySelectorAll('select.v_orientation')).map((s) => s.value);
+  const defaultOri = ['landscape', 'portrait', 'square'].find((o) => !usedOrientations.includes(o)) || 'landscape';
+  const ori = v && v.orientation ? v.orientation : defaultOri;
+  const spec = v && v.attributeValues ? 'attributeValues' : v && v.slug ? 'slug' : 'productId';
+
+  row.innerHTML = `
+    <div class="variant-head">
+      <strong>Variant</strong>
+      <button type="button" class="btn btn-danger btn-small v_remove">Usuń variant</button>
+    </div>
+    <div class="row">
+      <div>
+        <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500;">Orientation</label>
+        <select class="v_orientation">
+          <option value="landscape">landscape (w &gt; h)</option>
+          <option value="portrait">portrait (h &gt; w)</option>
+          <option value="square">square (h ≈ w)</option>
+        </select>
+      </div>
+      <div>
+        <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500;">productFamilyId</label>
+        <input class="v_family" placeholder="304">
+      </div>
+    </div>
+    <div class="radio-row">
+      <label><input type="radio" name="vspec_TMP" value="productId"> productId</label>
+      <label><input type="radio" name="vspec_TMP" value="slug"> slug</label>
+      <label><input type="radio" name="vspec_TMP" value="attributeValues"> attributeValues</label>
+    </div>
+    <div class="spec-block" data-vspec="productId">
+      <input class="v_productId" placeholder="7607">
+    </div>
+    <div class="spec-block" data-vspec="slug">
+      <input class="v_slug" placeholder="pic-frame-portrait">
+    </div>
+    <div class="spec-block" data-vspec="attributeValues">
+      <textarea class="v_attrs" placeholder='{"orientation": "vertical", "size": "8x12", "theme": "concertFrame"}'></textarea>
+    </div>
+  `;
+
+  const groupName = 'vspec_' + Math.random().toString(36).slice(2, 8);
+  row.querySelectorAll('input[name="vspec_TMP"]').forEach((r) => {
+    r.name = groupName;
+    if (r.value === spec) r.checked = true;
+    r.addEventListener('change', () => switchVariantSpec(row, r.value));
+  });
+  switchVariantSpec(row, spec);
+
+  row.querySelector('.v_orientation').value = ori;
+  row.querySelector('.v_family').value = v && v.familyId ? v.familyId : '';
+  row.querySelector('.v_productId').value = v && v.productId ? v.productId : '';
+  row.querySelector('.v_slug').value = v && v.slug ? v.slug : '';
+  row.querySelector('.v_attrs').value = v && v.attributeValues ? JSON.stringify(v.attributeValues, null, 2) : '';
+
+  row.querySelector('.v_remove').addEventListener('click', () => row.remove());
+  list.appendChild(row);
+}
+
+function switchVariantSpec(row, spec) {
+  row.querySelectorAll('.spec-block').forEach((b) => {
+    b.classList.toggle('active', b.getAttribute('data-vspec') === spec);
+  });
+}
+
+function readVariantsFromForm() {
+  const rows = Array.from($('variantsList').querySelectorAll('.variant-row'));
+  if (rows.length === 0) throw new Error('Dodaj co najmniej jeden variant.');
+  const variants = [];
+  const seenOri = new Set();
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const orientation = row.querySelector('.v_orientation').value;
+    const familyId = row.querySelector('.v_family').value.trim();
+    const specRadio = row.querySelector('input[name^="vspec_"]:checked');
+    if (!specRadio) throw new Error(`Variant ${i + 1}: wybierz typ specyfikacji.`);
+    const spec = specRadio.value;
+    if (!familyId) throw new Error(`Variant ${i + 1} (${orientation}): familyId jest wymagany.`);
+    if (seenOri.has(orientation)) throw new Error(`Variant ${orientation} podany dwa razy.`);
+    seenOri.add(orientation);
+    const entry = { orientation, familyId };
+    if (spec === 'productId') {
+      const val = row.querySelector('.v_productId').value.trim();
+      if (!val) throw new Error(`Variant ${i + 1} (${orientation}): productId pusty.`);
+      entry.productId = val;
+    } else if (spec === 'slug') {
+      const val = row.querySelector('.v_slug').value.trim();
+      if (!val) throw new Error(`Variant ${i + 1} (${orientation}): slug pusty.`);
+      entry.slug = val;
+    } else {
+      const raw = row.querySelector('.v_attrs').value.trim();
+      if (!raw) throw new Error(`Variant ${i + 1} (${orientation}): attributeValues puste.`);
+      try {
+        const obj = JSON.parse(raw);
+        if (typeof obj !== 'object' || Array.isArray(obj)) throw new Error('musi być obiektem');
+        entry.attributeValues = obj;
+      } catch (err) {
+        throw new Error(`Variant ${i + 1} (${orientation}): niepoprawny JSON — ${err.message}`);
+      }
+    }
+    variants.push(entry);
+  }
+  return variants;
 }
 
 function closeEditor() {
@@ -432,42 +578,54 @@ $('addBtn').addEventListener('click', () => openEditor(null));
 $('cancelEditBtn').addEventListener('click', closeEditor);
 $('cancelEditBtn2').addEventListener('click', closeEditor);
 $('reloadBtn').addEventListener('click', loadProducts);
+$('addVariantBtn').addEventListener('click', () => addVariantRow());
+$('f_useVariants').addEventListener('change', (e) => {
+  toggleVariantsMode(e.target.checked);
+  // Pre-seed an empty variant row when switching INTO variant mode so the
+  // user has something to fill in.
+  if (e.target.checked && $('variantsList').children.length === 0) addVariantRow();
+});
 
 $('productForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const spec = document.querySelector('input[name="spec"]:checked').value;
   const id = $('f_id').value.trim();
+  const useVariants = $('f_useVariants').checked;
   const productData = {
     id,
     name: $('f_name').value.trim(),
     thumbnailUrl: $('f_thumb').value.trim(),
-    familyId: $('f_family').value.trim(),
     minPhotos: parseInt($('f_min').value, 10),
   };
   const maxRaw = $('f_max').value.trim();
   if (maxRaw) productData.maxPhotos = parseInt(maxRaw, 10);
 
-  const variantGroupRaw = $('f_variantGroup').value.trim();
-  const variantOrientationRaw = $('f_variantOrientation').value;
-  if (variantGroupRaw) productData.variantGroup = variantGroupRaw;
-  if (variantOrientationRaw) productData.variantOrientation = variantOrientationRaw;
-
-  if (spec === 'productId') {
-    productData.productId = $('f_productId').value.trim();
-    if (!productData.productId) return flash('Wpisz productId.', 'error');
-  } else if (spec === 'slug') {
-    productData.slug = $('f_slug').value.trim();
-    if (!productData.slug) return flash('Wpisz slug.', 'error');
-  } else if (spec === 'attributeValues') {
-    const raw = $('f_attrs').value.trim();
-    if (!raw) return flash('Wpisz attributeValues (JSON).', 'error');
+  if (useVariants) {
     try {
-      productData.attributeValues = JSON.parse(raw);
-      if (typeof productData.attributeValues !== 'object' || Array.isArray(productData.attributeValues)) {
-        return flash('attributeValues musi być obiektem JSON.', 'error');
-      }
+      productData.variants = readVariantsFromForm();
     } catch (err) {
-      return flash('Niepoprawny JSON: ' + err.message, 'error');
+      return flash(err.message, 'error');
+    }
+  } else {
+    productData.familyId = $('f_family').value.trim();
+    if (!productData.familyId) return flash('Wpisz productFamilyId.', 'error');
+    const spec = document.querySelector('#flatSpec input[name="spec"]:checked').value;
+    if (spec === 'productId') {
+      productData.productId = $('f_productId').value.trim();
+      if (!productData.productId) return flash('Wpisz productId.', 'error');
+    } else if (spec === 'slug') {
+      productData.slug = $('f_slug').value.trim();
+      if (!productData.slug) return flash('Wpisz slug.', 'error');
+    } else if (spec === 'attributeValues') {
+      const raw = $('f_attrs').value.trim();
+      if (!raw) return flash('Wpisz attributeValues (JSON).', 'error');
+      try {
+        productData.attributeValues = JSON.parse(raw);
+        if (typeof productData.attributeValues !== 'object' || Array.isArray(productData.attributeValues)) {
+          return flash('attributeValues musi być obiektem JSON.', 'error');
+        }
+      } catch (err) {
+        return flash('Niepoprawny JSON: ' + err.message, 'error');
+      }
     }
   }
 

@@ -6,10 +6,11 @@ const PRODUCTS_PATH = 'gallery-link/products.json';
 const VALID_ORIENTATIONS = ['portrait', 'landscape', 'square'];
 
 // Seed used the very first time admin loads and no blob exists yet.
-// Mirrors the hardcoded set the frontend currently ships with.
-// Frame ships as three variants (variantGroup: "frame") — the frontend
-// renders one card per variantGroup and picks the entry whose
-// variantOrientation matches the selected photo's aspect ratio.
+// Products can be EITHER flat (familyId + productId/slug/attributeValues
+// at top level) OR variant-based (variants[] array, each entry carries its
+// own orientation + spec). Frontend renders one card per product, and for
+// variant products auto-picks the entry whose orientation matches the
+// selected photo's aspect ratio.
 const DEFAULT_PRODUCTS = [
   {
     id: 'book',
@@ -30,46 +31,37 @@ const DEFAULT_PRODUCTS = [
     maxPhotos: 36,
   },
   {
-    id: 'frame-landscape',
+    id: 'frame',
     name: 'Frame',
     thumbnailUrl: 'assets/frame.jpg',
-    familyId: '304',
-    variantGroup: 'frame',
-    variantOrientation: 'landscape',
-    attributeValues: {
-      orientation: 'horizontal', size: '12x8',
-      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
-    },
     minPhotos: 1,
     maxPhotos: 1,
-  },
-  {
-    id: 'frame-portrait',
-    name: 'Frame',
-    thumbnailUrl: 'assets/frame.jpg',
-    familyId: '304',
-    variantGroup: 'frame',
-    variantOrientation: 'portrait',
-    attributeValues: {
-      orientation: 'vertical', size: '8x12',
-      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
-    },
-    minPhotos: 1,
-    maxPhotos: 1,
-  },
-  {
-    id: 'frame-square',
-    name: 'Frame',
-    thumbnailUrl: 'assets/frame.jpg',
-    familyId: '304',
-    variantGroup: 'frame',
-    variantOrientation: 'square',
-    attributeValues: {
-      orientation: 'square', size: '10x10',
-      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
-    },
-    minPhotos: 1,
-    maxPhotos: 1,
+    variants: [
+      {
+        orientation: 'landscape',
+        familyId: '304',
+        attributeValues: {
+          orientation: 'horizontal', size: '12x8',
+          theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
+        },
+      },
+      {
+        orientation: 'portrait',
+        familyId: '304',
+        attributeValues: {
+          orientation: 'vertical', size: '8x12',
+          theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
+        },
+      },
+      {
+        orientation: 'square',
+        familyId: '304',
+        attributeValues: {
+          orientation: 'square', size: '10x10',
+          theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
+        },
+      },
+    ],
   },
 ];
 
@@ -111,25 +103,52 @@ async function writeProducts(products) {
   cachedAt = Date.now();
 }
 
+function hasSpec(o) {
+  const hasProductId = o.productId && String(o.productId).trim().length > 0;
+  const hasSlug = o.slug && String(o.slug).trim().length > 0;
+  const hasAttrs = o.attributeValues && typeof o.attributeValues === 'object'
+    && !Array.isArray(o.attributeValues) && Object.keys(o.attributeValues).length > 0;
+  return hasProductId || hasSlug || hasAttrs;
+}
+
 function validateProduct(p, idx) {
   if (!p || typeof p !== 'object') return `products[${idx}] must be an object`;
   if (!p.id || typeof p.id !== 'string') return `products[${idx}].id is required (string)`;
   if (!p.name || typeof p.name !== 'string') return `products[${idx}].name is required (string)`;
-  if (!p.familyId) return `products[${idx}].familyId is required`;
-  const hasProductId = p.productId && String(p.productId).trim().length > 0;
-  const hasSlug = p.slug && String(p.slug).trim().length > 0;
-  const hasAttrs = p.attributeValues && typeof p.attributeValues === 'object' && Object.keys(p.attributeValues).length > 0;
-  if (!hasProductId && !hasSlug && !hasAttrs) {
-    return `products[${idx}] (${p.id}) needs one of: productId, slug, attributeValues`;
-  }
   if (typeof p.minPhotos !== 'number' || p.minPhotos < 1) {
     return `products[${idx}] (${p.id}).minPhotos must be a positive number`;
   }
-  if (p.variantGroup != null && (typeof p.variantGroup !== 'string' || !p.variantGroup.trim())) {
-    return `products[${idx}] (${p.id}).variantGroup must be a non-empty string when set`;
+
+  // Variant-based products: each entry in `variants` carries its own
+  // orientation + familyId + spec. Mutually exclusive with top-level spec.
+  if (Array.isArray(p.variants) && p.variants.length > 0) {
+    const seenOri = new Set();
+    for (let v = 0; v < p.variants.length; v++) {
+      const variant = p.variants[v];
+      if (!variant || typeof variant !== 'object') {
+        return `products[${idx}] (${p.id}).variants[${v}] must be an object`;
+      }
+      if (!VALID_ORIENTATIONS.includes(variant.orientation)) {
+        return `products[${idx}] (${p.id}).variants[${v}].orientation must be one of: ${VALID_ORIENTATIONS.join(', ')}`;
+      }
+      if (seenOri.has(variant.orientation)) {
+        return `products[${idx}] (${p.id}).variants has duplicate orientation: ${variant.orientation}`;
+      }
+      seenOri.add(variant.orientation);
+      if (!variant.familyId) {
+        return `products[${idx}] (${p.id}).variants[${v}].familyId is required`;
+      }
+      if (!hasSpec(variant)) {
+        return `products[${idx}] (${p.id}).variants[${v}] needs one of: productId, slug, attributeValues`;
+      }
+    }
+    return null;
   }
-  if (p.variantOrientation != null && !VALID_ORIENTATIONS.includes(p.variantOrientation)) {
-    return `products[${idx}] (${p.id}).variantOrientation must be one of: ${VALID_ORIENTATIONS.join(', ')}`;
+
+  // Flat (no-variant) products: spec lives at top level.
+  if (!p.familyId) return `products[${idx}] (${p.id}).familyId is required`;
+  if (!hasSpec(p)) {
+    return `products[${idx}] (${p.id}) needs one of: productId, slug, attributeValues (or define variants[])`;
   }
   return null;
 }
