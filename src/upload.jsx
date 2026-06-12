@@ -224,13 +224,37 @@ function photoOrientation(photo) {
   return photo.ar > 1 ? 'portrait' : 'landscape';
 }
 
+// For variant products: score each variant by how many of its declared
+// criteria match the current context (band, orientation). Mismatch on any
+// declared criterion eliminates the variant. The variant with the highest
+// score wins (more specific > less specific); ties go to the first
+// encountered. Falls back to the first variant when nothing matches at all.
+function pickVariantFromContext(variants, ctx) {
+  let best = null;
+  let bestScore = -1;
+  for (const v of variants) {
+    let score = 0;
+    let mismatch = false;
+    if (v.orientation != null && v.orientation !== '') {
+      if (v.orientation === ctx.orientation) score++;
+      else mismatch = true;
+    }
+    if (v.band != null && v.band !== '') {
+      if (v.band === ctx.band) score++;
+      else mismatch = true;
+    }
+    if (mismatch) continue;
+    if (score > bestScore) { best = v; bestScore = score; }
+  }
+  return best || variants[0];
+}
+
 // For a product fetched from /api/products, pick the actual spec block that
-// will drive setEditorConfig. Variant products carry an array keyed by
-// orientation; flat products carry the spec at the top level.
-function pickProductSpec(product, firstPhoto) {
+// will drive setEditorConfig. Variant products go through multi-criteria
+// matching; flat products carry the spec at the top level.
+function pickProductSpec(product, ctx) {
   if (Array.isArray(product.variants) && product.variants.length > 0) {
-    const ori = photoOrientation(firstPhoto);
-    return product.variants.find((v) => v.orientation === ori) || product.variants[0];
+    return pickVariantFromContext(product.variants, ctx);
   }
   return product;
 }
@@ -264,9 +288,21 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           personalizationParams.concertDnV = [concert.date, concert.venue].filter(Boolean).join(' · ');
         }
 
-        const spec = pickProductSpec(product, selectedPhotos[0]);
-        const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
-        const useEditorDirect = hasVariants || !!spec.attributeValues || !!spec.slug || !spec.productId;
+        // Variant matching context: photo orientation drives Frame variants;
+        // concert.artist drives band-keyed variants (Photobook per band, or
+        // Frame band×orientation combinations).
+        const ctx = {
+          orientation: photoOrientation(selectedPhotos[0]),
+          band: concert && concert.artist,
+        };
+        const spec = pickProductSpec(product, ctx);
+        // Routing decision is driven by the chosen spec, not by whether the
+        // product itself has variants — Photobook with band variants still
+        // wants the backend round-trip (photos auto-place into pages),
+        // because each variant carries a numeric productId. Frame variants
+        // carry attributeValues and go editor-direct so Printbox resolves
+        // the right variant via the attribute combination.
+        const useEditorDirect = !!spec.attributeValues || !!spec.slug || !spec.productId;
 
         // ── Editor-direct flow: variants, slug-only, or attributeValues-only
         // products. The editor builds the project itself from

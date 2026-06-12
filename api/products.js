@@ -120,21 +120,32 @@ function validateProduct(p, idx) {
   }
 
   // Variant-based products: each entry in `variants` carries its own
-  // orientation + familyId + spec. Mutually exclusive with top-level spec.
+  // orientation and/or band + familyId + spec. Either dimension is optional,
+  // but a variant must have at least one of them (otherwise it's just a flat
+  // product in disguise) AND the (band, orientation) pair must be unique.
   if (Array.isArray(p.variants) && p.variants.length > 0) {
-    const seenOri = new Set();
+    const seenKeys = new Set();
     for (let v = 0; v < p.variants.length; v++) {
       const variant = p.variants[v];
       if (!variant || typeof variant !== 'object') {
         return `products[${idx}] (${p.id}).variants[${v}] must be an object`;
       }
-      if (!VALID_ORIENTATIONS.includes(variant.orientation)) {
+      const hasOri = variant.orientation != null && variant.orientation !== '';
+      const hasBand = variant.band != null && variant.band !== '';
+      if (hasOri && !VALID_ORIENTATIONS.includes(variant.orientation)) {
         return `products[${idx}] (${p.id}).variants[${v}].orientation must be one of: ${VALID_ORIENTATIONS.join(', ')}`;
       }
-      if (seenOri.has(variant.orientation)) {
-        return `products[${idx}] (${p.id}).variants has duplicate orientation: ${variant.orientation}`;
+      if (hasBand && typeof variant.band !== 'string') {
+        return `products[${idx}] (${p.id}).variants[${v}].band must be a string`;
       }
-      seenOri.add(variant.orientation);
+      if (!hasOri && !hasBand) {
+        return `products[${idx}] (${p.id}).variants[${v}] must set at least one of: orientation, band`;
+      }
+      const key = (variant.band || '') + '|' + (variant.orientation || '');
+      if (seenKeys.has(key)) {
+        return `products[${idx}] (${p.id}).variants has duplicate (band, orientation) = (${variant.band || ''}, ${variant.orientation || ''})`;
+      }
+      seenKeys.add(key);
       if (!variant.familyId) {
         return `products[${idx}] (${p.id}).variants[${v}].familyId is required`;
       }
