@@ -240,7 +240,7 @@ const FRAME_FAMILY_ID = '304';
 const FRAME_ATTRS_COMMON = {
   theme: 'concertFrame',
   frameColor: 'black',
-  frameThickness: '1_inch',
+  frameThickness: '1inch',
 };
 const FRAME_ATTRS = {
   FrameLandscape: { ...FRAME_ATTRS_COMMON, orientation: 'horizontal', size: '12x8' },
