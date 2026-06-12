@@ -230,16 +230,6 @@ function frameProductKey(photo) {
   return photo.ar > 1 ? 'FramePortrait' : 'FrameLandscape';
 }
 
-// Numeric Printbox product_id per Frame variant — mirrored from api/create-project.js
-// PRODUCTS map. setEditorConfig accepts productId as a string; we send the numeric id
-// stringified rather than fetching a friendly_url slug.
-const FRAME_PRODUCT_ID = {
-  Frame:          '7519',  // square
-  FramePortrait:  '7607',  // h > w
-  FrameLandscape: '7606',  // w > h
-};
-const FRAME_FAMILY_ID = '304';
-
 // Each concert artist gets a dedicated Photobook product (theme / cover).
 function photobookProductKey(concert) {
   switch (concert && concert.artist) {
@@ -279,14 +269,25 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         }
 
         // ── Simple products (Frame): skip backend project creation. Pass
-        // productFamilyId + productId + photosToUploadForNewProject and let
-        // the editor build the project itself. No UUID round-trip, no slug
-        // resolution — setEditorConfig accepts the numeric product_id as a
-        // string straight from FRAME_PRODUCT_ID.
+        // productFamilyId + productId (slug) + photosToUploadForNewProject
+        // and let the editor build the project itself. No UUID round-trip.
+        // setEditorConfig's productId is the product's friendly_url
+        // (despite the doc just saying "Format: string") — the editor calls
+        // GetProductFromFriendlyUrl internally, so a numeric id 404s.
+        // /api/product-info resolves the slug via GET /api/ec/v4/products/{id}/.
         if (product.id === 'frame') {
+          setStage('creating');
+          const variantKey = frameProductKey(selectedPhotos[0]);
+          const infoRes = await fetch('/api/product-info?key=' + encodeURIComponent(variantKey));
+          const infoData = await infoRes.json().catch(() => ({}));
+          if (!infoRes.ok || !infoData.slug) {
+            throw new Error('Failed to resolve product slug for ' + variantKey + ': ' + (infoData.error || infoRes.status));
+          }
+
+          if (cancelled) return;
+
           setStage('redirecting');
           try { localStorage.removeItem('encore'); } catch (_) {}
-          const variantKey = frameProductKey(selectedPhotos[0]);
           const photosForEditor = selectedPhotos.map((p) => ({
             id: p.id,
             name: (p.frame ? p.frame : p.id) + '.jpg',
@@ -294,9 +295,9 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             publishTime: Date.now(),
           }));
           const urlParams = new URLSearchParams({
-            familyId: FRAME_FAMILY_ID,
+            familyId: String(infoData.family_id),
             siteName: 'sales_demo',
-            productId: FRAME_PRODUCT_ID[variantKey] || FRAME_PRODUCT_ID.Frame,
+            productId: infoData.slug,
             photos: JSON.stringify(photosForEditor),
             ...personalizationParams,
           });
