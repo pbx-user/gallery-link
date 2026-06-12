@@ -230,15 +230,23 @@ function frameProductKey(photo) {
   return photo.ar > 1 ? 'FramePortrait' : 'FrameLandscape';
 }
 
-// Numeric Printbox product_id per Frame variant — mirrored from api/create-project.js
-// PRODUCTS map. setEditorConfig accepts productId as a string; Printbox's own
-// playground demo passes numeric ids (e.g. "7606") in setEditorConfig and it works.
-const FRAME_PRODUCT_ID = {
-  Frame:          '7519',  // square
-  FramePortrait:  '7607',  // h > w
-  FrameLandscape: '7606',  // w > h
-};
 const FRAME_FAMILY_ID = '304';
+// Per-variant attributeValues — setEditorConfig uses these to pick the
+// product within family 304 without needing a productId. Per docs:
+// "Creates a project with a selected combination of attributes. The steps
+// before the editor are then not displayed."
+// Values for horizontal taken from a working Printbox example; vertical /
+// square are best guesses — adjust if Printbox admin uses different keys.
+const FRAME_ATTRS_COMMON = {
+  theme: 'concertFrame',
+  frameColor: 'black',
+  frameThickness: '1_inch',
+};
+const FRAME_ATTRS = {
+  FrameLandscape: { ...FRAME_ATTRS_COMMON, orientation: 'horizontal', size: '12x8' },
+  FramePortrait:  { ...FRAME_ATTRS_COMMON, orientation: 'vertical',   size: '8x12' },
+  Frame:          { ...FRAME_ATTRS_COMMON, orientation: 'square',     size: '10x10' },
+};
 
 // Each concert artist gets a dedicated Photobook product (theme / cover).
 function photobookProductKey(concert) {
@@ -279,10 +287,10 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         }
 
         // ── Simple products (Frame): skip backend project creation. Pass
-        // productFamilyId + productId + photosToUploadForNewProject and let
-        // the editor build the project itself. No UUID round-trip.
-        // productId is the numeric Printbox product_id stringified — Printbox's
-        // own playground proves setEditorConfig accepts this form.
+        // productFamilyId + attributeValues + photosToUploadForNewProject and
+        // let the editor build the project itself. attributeValues replaces
+        // productId — the editor picks the variant inside family 304 from the
+        // attribute combination and skips the pre-editor steps automatically.
         if (product.id === 'frame') {
           setStage('redirecting');
           try { localStorage.removeItem('encore'); } catch (_) {}
@@ -296,7 +304,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           const urlParams = new URLSearchParams({
             familyId: FRAME_FAMILY_ID,
             siteName: 'sales_demo',
-            productId: FRAME_PRODUCT_ID[variantKey] || FRAME_PRODUCT_ID.Frame,
+            attributeValues: JSON.stringify(FRAME_ATTRS[variantKey] || FRAME_ATTRS.Frame),
             photos: JSON.stringify(photosForEditor),
             ...personalizationParams,
           });
