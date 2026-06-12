@@ -613,6 +613,7 @@ const DEFAULT_SITE_NAME = 'sales_demo';
   let customImageUrl = params.get('customImageUrl');
   let bandName = params.get('bandName');
   let concertDnV = params.get('concertDnV');
+  const productId = params.get('productId');  // slug, e.g. "pic-frame-portrait"
   const photosParam = params.get('photos');
 
   if (projectId) {
@@ -656,7 +657,7 @@ const DEFAULT_SITE_NAME = 'sales_demo';
     siteName,
     familyId,
     moduleId: '',
-    productId: '',
+    productId: productId || '',
     storeName: 'encore',
     currency: 'USD',
     locale: 'en-us',

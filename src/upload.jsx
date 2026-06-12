@@ -269,9 +269,22 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         }
 
         // ── Simple products (Frame): skip backend project creation. Pass
-        // productFamilyId + photosToUploadForNewProject and let the editor
-        // build the project itself. Cheaper round-trip, no UUID handoff.
+        // productFamilyId + productId (slug) + photosToUploadForNewProject
+        // and let the editor build the project itself. No UUID round-trip.
+        // We still pick the variant matching the photo orientation
+        // (frameProductKey) and ask /api/product-info to resolve its slug —
+        // setEditorConfig requires friendly_url, not numeric IDs.
         if (product.id === 'frame') {
+          setStage('creating');
+          const variantKey = frameProductKey(selectedPhotos[0]);
+          const infoRes = await fetch('/api/product-info?key=' + encodeURIComponent(variantKey));
+          const infoData = await infoRes.json().catch(() => ({}));
+          if (!infoRes.ok || !infoData.slug) {
+            throw new Error('Failed to resolve product slug for ' + variantKey + ': ' + (infoData.error || infoRes.status));
+          }
+
+          if (cancelled) return;
+
           setStage('redirecting');
           try { localStorage.removeItem('encore'); } catch (_) {}
           const photosForEditor = selectedPhotos.map((p) => ({
@@ -281,8 +294,9 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             publishTime: Date.now(),
           }));
           const urlParams = new URLSearchParams({
-            familyId: '304',
+            familyId: String(infoData.family_id),
             siteName: 'sales_demo',
+            productId: infoData.slug,
             photos: JSON.stringify(photosForEditor),
             ...personalizationParams,
           });
