@@ -122,6 +122,8 @@ const WC = (slug, w, h, opt = {}) => ({
 
 // Curated set shown first to Withered Crown viewers. Heroes = full-width
 // in the masonry; pick = preselected by "Select recommended".
+// Dimensions for the 9-17 batch are guesses (the user only gave filenames);
+// adjust w/h if the actual aspect ratios don't match what the masonry shows.
 const WITHERED_PHOTOS = [
   WC('7drums', 768, 1376, { hero: true, pick: true, g: 0, frame: 'WC01' }),
   WC('6',      1024, 1024, { pick: true,             g: 1, frame: 'WC02' }),
@@ -131,6 +133,14 @@ const WITHERED_PHOTOS = [
   WC('8',      768, 1376,  {                         g: 5, frame: 'WC06' }),
   WC('4',      1024, 1024, {                         g: 0, frame: 'WC07' }),
   WC('2',      1408, 768,  {                         g: 1, frame: 'WC08' }),
+  WC('9',      1408, 768,  { pick: true,             g: 2, frame: 'WC09' }),
+  WC('10',     1024, 1024, {                         g: 3, frame: 'WC10' }),
+  WC('11',     768, 1376,  { hero: true,             g: 4, frame: 'WC11' }),
+  WC('12',     1408, 768,  {                         g: 5, frame: 'WC12' }),
+  WC('13',     1024, 1024, { pick: true,             g: 0, frame: 'WC13' }),
+  WC('14',     768, 1376,  {                         g: 1, frame: 'WC14' }),
+  WC('15',     1408, 768,  { hero: true,             g: 2, frame: 'WC15' }),
+  WC('17',     1024, 1024, {                         g: 3, frame: 'WC17' }),
 ];
 
 const PHOTOS = [
