@@ -205,6 +205,24 @@
         <div class="hint">JSON-owy obiekt z kluczami atrybutów (orientation, size, theme, frameColor, frameThickness...).</div>
       </div>
 
+      <label>Variant (opcjonalne)</label>
+      <div class="row">
+        <div>
+          <label for="f_variantGroup" style="text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 11px; font-weight: 500;">variantGroup</label>
+          <input id="f_variantGroup" placeholder="frame">
+        </div>
+        <div>
+          <label for="f_variantOrientation" style="text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 11px; font-weight: 500;">variantOrientation</label>
+          <select id="f_variantOrientation">
+            <option value="">— (none)</option>
+            <option value="portrait">portrait (h &gt; w)</option>
+            <option value="landscape">landscape (w &gt; h)</option>
+            <option value="square">square (h ≈ w)</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">Produkty z tym samym <code>variantGroup</code> tworzą jedną kartę na froncie. Front wybiera variant na podstawie orientacji wybranego zdjęcia (<code>variantOrientation</code>). Zostaw puste dla zwykłego produktu bez wariantów.</div>
+
       <div class="actions">
         <button type="submit" class="btn">Zapisz produkt</button>
         <button type="button" class="btn btn-secondary" id="cancelEditBtn2">Anuluj</button>
@@ -335,11 +353,14 @@ function renderList() {
       : p.slug ? 'slug: ' + p.slug
       : p.attributeValues ? 'attrs: ' + Object.keys(p.attributeValues).length + ' keys'
       : '(brak spec)';
+    const variantTag = p.variantGroup
+      ? ` · variant: ${escapeText(p.variantGroup)}${p.variantOrientation ? '/' + escapeText(p.variantOrientation) : ''}`
+      : '';
     row.innerHTML = `
       <img src="${escapeAttr(p.thumbnailUrl || '')}" alt="" onerror="this.style.opacity=0">
       <div class="meta">
         <div class="name">${escapeText(p.name)} <span style="color: var(--faint); font-weight: 400; font-size: 12px;">(${escapeText(p.id)})</span></div>
-        <div class="details">family ${escapeText(p.familyId)} · ${escapeText(spec)} · min ${p.minPhotos}${p.maxPhotos ? ' / max ' + p.maxPhotos : ''}</div>
+        <div class="details">family ${escapeText(p.familyId)} · ${escapeText(spec)} · min ${p.minPhotos}${p.maxPhotos ? ' / max ' + p.maxPhotos : ''}${variantTag}</div>
       </div>
       <div class="actions">
         <button type="button" class="btn btn-secondary btn-small" data-edit="${idx}">Edytuj</button>
@@ -386,6 +407,9 @@ function openEditor(idx) {
   $('f_slug').value = p && p.slug ? p.slug : '';
   $('f_attrs').value = p && p.attributeValues ? JSON.stringify(p.attributeValues, null, 2) : '';
 
+  $('f_variantGroup').value = p && p.variantGroup ? p.variantGroup : '';
+  $('f_variantOrientation').value = p && p.variantOrientation ? p.variantOrientation : '';
+
   $('editorCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -422,6 +446,11 @@ $('productForm').addEventListener('submit', async (e) => {
   };
   const maxRaw = $('f_max').value.trim();
   if (maxRaw) productData.maxPhotos = parseInt(maxRaw, 10);
+
+  const variantGroupRaw = $('f_variantGroup').value.trim();
+  const variantOrientationRaw = $('f_variantOrientation').value;
+  if (variantGroupRaw) productData.variantGroup = variantGroupRaw;
+  if (variantOrientationRaw) productData.variantOrientation = variantOrientationRaw;
 
   if (spec === 'productId') {
     productData.productId = $('f_productId').value.trim();

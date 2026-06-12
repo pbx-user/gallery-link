@@ -3,8 +3,13 @@ const { put, list } = require('@vercel/blob');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'pbxadmin';
 const PRODUCTS_PATH = 'gallery-link/products.json';
 
+const VALID_ORIENTATIONS = ['portrait', 'landscape', 'square'];
+
 // Seed used the very first time admin loads and no blob exists yet.
 // Mirrors the hardcoded set the frontend currently ships with.
+// Frame ships as three variants (variantGroup: "frame") — the frontend
+// renders one card per variantGroup and picks the entry whose
+// variantOrientation matches the selected photo's aspect ratio.
 const DEFAULT_PRODUCTS = [
   {
     id: 'book',
@@ -25,16 +30,43 @@ const DEFAULT_PRODUCTS = [
     maxPhotos: 36,
   },
   {
-    id: 'frame',
+    id: 'frame-landscape',
     name: 'Frame',
     thumbnailUrl: 'assets/frame.jpg',
     familyId: '304',
+    variantGroup: 'frame',
+    variantOrientation: 'landscape',
     attributeValues: {
-      orientation: 'horizontal',
-      size: '12x8',
-      theme: 'concertFrame',
-      frameColor: 'black',
-      frameThickness: '1inch',
+      orientation: 'horizontal', size: '12x8',
+      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
+    },
+    minPhotos: 1,
+    maxPhotos: 1,
+  },
+  {
+    id: 'frame-portrait',
+    name: 'Frame',
+    thumbnailUrl: 'assets/frame.jpg',
+    familyId: '304',
+    variantGroup: 'frame',
+    variantOrientation: 'portrait',
+    attributeValues: {
+      orientation: 'vertical', size: '8x12',
+      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
+    },
+    minPhotos: 1,
+    maxPhotos: 1,
+  },
+  {
+    id: 'frame-square',
+    name: 'Frame',
+    thumbnailUrl: 'assets/frame.jpg',
+    familyId: '304',
+    variantGroup: 'frame',
+    variantOrientation: 'square',
+    attributeValues: {
+      orientation: 'square', size: '10x10',
+      theme: 'concertFrame', frameColor: 'black', frameThickness: '1inch',
     },
     minPhotos: 1,
     maxPhotos: 1,
@@ -92,6 +124,12 @@ function validateProduct(p, idx) {
   }
   if (typeof p.minPhotos !== 'number' || p.minPhotos < 1) {
     return `products[${idx}] (${p.id}).minPhotos must be a positive number`;
+  }
+  if (p.variantGroup != null && (typeof p.variantGroup !== 'string' || !p.variantGroup.trim())) {
+    return `products[${idx}] (${p.id}).variantGroup must be a non-empty string when set`;
+  }
+  if (p.variantOrientation != null && !VALID_ORIENTATIONS.includes(p.variantOrientation)) {
+    return `products[${idx}] (${p.id}).variantOrientation must be one of: ${VALID_ORIENTATIONS.join(', ')}`;
   }
   return null;
 }
