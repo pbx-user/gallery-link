@@ -118,9 +118,21 @@ function App() {
 
   // ── navigation backed by browser history so the phone back button works ──
   const screenRef = useR(screen); screenRef.current = screen;
+  const lightboxRef = useR(lightbox); lightboxRef.current = lightbox;
   const navTo = (to, push = true) => { setScreen(to); if (push) history.pushState({ screen: to }, ''); };
   const openLightbox = useCb((i) => { setLightbox(i); history.pushState({ screen: screenRef.current, lightbox: i }, ''); }, []);
-  const goBack = () => history.back();
+
+  // In-app back buttons must NEVER leave the site. history.back() pops to
+  // whatever the browser had before our pushStates — often the referrer
+  // (e.g. encore-app.vibe.printboxteam.com), which is exactly what we want
+  // to avoid. Walk our own state machine instead: lightbox close > screen
+  // prev > no-op on scan/unlock. Browser's own back button is unaffected.
+  const SCREEN_BACK = { ticket: 'scan', memories: 'scan', upload: 'memories', done: 'memories' };
+  const goBack = () => {
+    if (lightboxRef.current !== null) { setLightbox(null); return; }
+    const target = SCREEN_BACK[screenRef.current];
+    if (target) navTo(target);
+  };
   useE(() => {
     const onPop = (e) => { const st = e.state || {}; setLightbox(st.lightbox ?? null); setScreen(st.screen || 'scan'); };
     window.addEventListener('popstate', onPop);
