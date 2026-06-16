@@ -586,26 +586,12 @@ function initEditor(cfg) {
     }
   }
 
-  // personalizedPresentationContent precedence:
-  //   1. admin-defined editorParams.personalizedPresentationContent (takes over fully)
-  //   2. per-key URL params (bandName / concertDnV / customImageUrl / photo1)
+  // personalizedPresentationContent comes ONLY from admin-defined
+  // editorParams. No automatic fallback — leaving editorParams empty in
+  // admin means no personalization is sent to setEditorConfig.
   const adminPersonalized = cfg.editorParams && cfg.editorParams.personalizedPresentationContent;
   if (adminPersonalized && typeof adminPersonalized === 'object') {
     params.personalizedPresentationContent = adminPersonalized;
-  } else {
-    const personalizedComponents = {};
-    if (cfg.customImageUrl) personalizedComponents.customerImage1 = cfg.customImageUrl;
-    if (cfg.bandName) personalizedComponents.bandName = cfg.bandName;
-    if (cfg.concertDnV) personalizedComponents.concertDnV = cfg.concertDnV;
-    if (!cfg.projectId && Array.isArray(cfg.photosToUploadForNewProject) && cfg.photosToUploadForNewProject[0] && cfg.photosToUploadForNewProject[0].downloadUrl) {
-      personalizedComponents.photo1 = cfg.photosToUploadForNewProject[0].downloadUrl;
-    }
-    if (Object.keys(personalizedComponents).length > 0) {
-      params.personalizedPresentationContent = {
-        version: 1,
-        components: personalizedComponents,
-      };
-    }
   }
 
   // Spread any other keys admin defined in editorParams into setEditorConfig
