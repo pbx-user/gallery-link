@@ -564,12 +564,14 @@ function initEditor(cfg) {
   if (cfg.productId) params.productId = cfg.productId;
 
   // For "editor creates the project" flow (simple products like Frame) we
-  // hand a sidebar-ready photo list to setEditorConfig — only meaningful
-  // when projectId is empty (otherwise the photos already live in the saved
-  // project state).
-  if (!cfg.projectId && Array.isArray(cfg.photosToUploadForNewProject) && cfg.photosToUploadForNewProject.length > 0) {
-    params.photosToUploadForNewProject = cfg.photosToUploadForNewProject;
-  }
+  // used to hand a sidebar-ready photo list to setEditorConfig — but now we
+  // inject the photo URL into the project itself via
+  // personalizedPresentationContent.components.photo1 (see below). The list
+  // is left available on cfg.photosToUploadForNewProject in case we want to
+  // restore the sidebar drop behaviour later.
+  // if (!cfg.projectId && Array.isArray(cfg.photosToUploadForNewProject) && cfg.photosToUploadForNewProject.length > 0) {
+  //   params.photosToUploadForNewProject = cfg.photosToUploadForNewProject;
+  // }
 
   // Programmatic attributeValues (Gallery Link → Frame) takes precedence;
   // cfg.attrs is the manual-form JSON string fallback.
@@ -589,6 +591,12 @@ function initEditor(cfg) {
   if (cfg.customImageUrl) personalizedComponents.customerImage1 = cfg.customImageUrl;
   if (cfg.bandName) personalizedComponents.bandName = cfg.bandName;
   if (cfg.concertDnV) personalizedComponents.concertDnV = cfg.concertDnV;
+  // First photo from the editor-direct handoff lands in component "photo1"
+  // — the project template places it directly into the frame without the user
+  // needing to drag from the sidebar.
+  if (!cfg.projectId && Array.isArray(cfg.photosToUploadForNewProject) && cfg.photosToUploadForNewProject[0] && cfg.photosToUploadForNewProject[0].downloadUrl) {
+    personalizedComponents.photo1 = cfg.photosToUploadForNewProject[0].downloadUrl;
+  }
   if (Object.keys(personalizedComponents).length > 0) {
     params.personalizedPresentationContent = {
       version: 1,
