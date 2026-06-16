@@ -129,13 +129,19 @@ module.exports = async (req, res) => {
 
   try {
     const body = typeof req.body === 'string' ? safeJson(req.body) : (req.body || {});
-    const { familyId, productId, photos, name } = body;
+    const { familyId, productId, photos, name, attributes } = body;
 
     const familyIdNum = parseInt(familyId, 10);
-    const productIdNum = parseInt(productId, 10);
-    if (!familyIdNum || !productIdNum) {
+    if (!familyIdNum) {
+      res.status(400).json({ error: 'familyId (numeric) is required in the body' });
+      return;
+    }
+    const productIdNum = productId != null && productId !== '' ? parseInt(productId, 10) : null;
+    const hasAttrs = attributes && typeof attributes === 'object'
+      && !Array.isArray(attributes) && Object.keys(attributes).length > 0;
+    if (!productIdNum && !hasAttrs) {
       res.status(400).json({
-        error: 'familyId and productId (both numeric) are required in the body',
+        error: 'one of productId (numeric) or attributes (object) is required',
       });
       return;
     }
@@ -148,9 +154,10 @@ module.exports = async (req, res) => {
       name: projectName,
       store_id: PBX_STORE_ID,
       family_id: familyIdNum,
-      product_id: productIdNum,
       photos: { sources },
     };
+    if (productIdNum) payload.product_id = productIdNum;
+    if (hasAttrs) payload.attributes = attributes;
 
     const project = await pbxFetch('/api/ec/v4/projects/', {
       method: 'POST',

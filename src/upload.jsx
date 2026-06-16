@@ -259,6 +259,33 @@ function pickProductSpec(product, ctx) {
   return product;
 }
 
+// {{name}} → ctx[name]. Strings keep unresolved placeholders as-is; the
+// containing object drops the key when *any* placeholder went unresolved
+// (avoids sending empty / partially-templated values to the editor).
+const PLACEHOLDER_RE = /\{\{(\w+)\}\}/g;
+function substituteTemplate(value, ctx) {
+  if (typeof value === 'string') {
+    let unresolved = false;
+    const out = value.replace(PLACEHOLDER_RE, (m, name) => {
+      const v = ctx[name];
+      if (v == null || v === '') { unresolved = true; return m; }
+      return String(v);
+    });
+    return unresolved ? { __drop: true } : out;
+  }
+  if (Array.isArray(value)) return value.map((v) => substituteTemplate(v, ctx)).filter((v) => !(v && v.__drop));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const sub = substituteTemplate(v, ctx);
+      if (sub && sub.__drop) continue;
+      out[k] = sub;
+    }
+    return out;
+  }
+  return value;
+}
+
 // Final handoff: upload personalization photo to Vercel Blob (if any), create
 // the project against Printbox, then redirect to /editor.html with the URL
 // params our editor shell expects (projectId / familyId / siteName / customImageUrl).
@@ -296,45 +323,8 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           band: concert && concert.artist,
         };
         const spec = pickProductSpec(product, ctx);
-        // Routing decision is driven by the chosen spec, not by whether the
-        // product itself has variants — Photobook with band variants still
-        // wants the backend round-trip (photos auto-place into pages),
-        // because each variant carries a numeric productId. Frame variants
-        // carry attributeValues and go editor-direct so Printbox resolves
-        // the right variant via the attribute combination.
-        const useEditorDirect = !!spec.attributeValues || !!spec.slug || !spec.productId;
 
-        // ── Editor-direct flow: variants, slug-only, or attributeValues-only
-        // products. The editor builds the project itself from
-        // productFamilyId + (productId | attributeValues) + photos.
-        if (useEditorDirect) {
-          setStage('redirecting');
-          try { localStorage.removeItem('encore'); } catch (_) {}
-          const photosForEditor = selectedPhotos.map((p) => ({
-            id: p.id,
-            name: (p.frame ? p.frame : p.id) + '.jpg',
-            downloadUrl: p.src,
-            publishTime: Date.now(),
-          }));
-          const urlParams = new URLSearchParams({
-            familyId: String(spec.familyId),
-            siteName: 'sales_demo',
-            photos: JSON.stringify(photosForEditor),
-            ...personalizationParams,
-          });
-          if (spec.attributeValues) urlParams.set('attributeValues', JSON.stringify(spec.attributeValues));
-          // setEditorConfig wants productId as a friendly_url. Slug goes through
-          // verbatim; numeric productId is included as a fallback even though it
-          // tends to 404 — admin can switch to slug or attributeValues if so.
-          if (spec.slug) urlParams.set('productId', spec.slug);
-          else if (spec.productId) urlParams.set('productId', String(spec.productId));
-          window.location.href = '/editor/playground?' + urlParams.toString();
-          return;
-        }
-
-        // ── Backend-creation flow: flat product with a numeric productId.
-        // Backend POSTs /api/ec/v4/projects/ with photo sources (auto-placed),
-        // returns a UUID we hand off to the editor.
+        // Optional: upload first own photo as personalization image.
         let customImageUrl = null;
         const ownFile = own && own.length > 0 ? own[0].file : null;
         if (ownFile) {
@@ -351,34 +341,84 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
 
         if (cancelled) return;
 
-        setStage('creating');
-        const cpRes = await fetch('/api/create-project', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            familyId: spec.familyId,
-            productId: spec.productId,
-            photos: photoUrls,
-            name: 'Gallery Link ' + product.name,
-          }),
-        });
-        const cpData = await cpRes.json().catch(() => ({}));
-        if (!cpRes.ok) {
-          const detail = typeof cpData.details === 'object' ? ' · ' + JSON.stringify(cpData.details) : '';
-          throw new Error('create-project failed: ' + (cpData.error || cpRes.status) + detail);
+        // Substitution context for editorParams placeholders.
+        const tplCtx = {
+          bandName: concert.artist || '',
+          concertDnV: personalizationParams.concertDnV || '',
+          customImageUrl: customImageUrl || '',
+        };
+        selectedPhotos.forEach((p, i) => { tplCtx['photo' + (i + 1)] = p.src; });
+        const substitutedEditorParams = spec.editorParams
+          ? substituteTemplate(spec.editorParams, tplCtx)
+          : null;
+
+        // Routing: admin-defined creationMethod wins; otherwise default by spec
+        // (numeric productId → api so photos auto-place, else editor-direct).
+        const method = spec.creationMethod
+          || (spec.productId && !spec.attributeValues ? 'api' : 'editor');
+
+        // ── api flow: backend POSTs /api/ec/v4/projects/ with familyId +
+        // productId? + attributes?, returns uuid → editor opens it.
+        if (method === 'api') {
+          setStage('creating');
+          const cpRes = await fetch('/api/create-project', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              familyId: spec.familyId,
+              productId: spec.productId || undefined,
+              attributes: spec.attributeValues || undefined,
+              photos: photoUrls,
+              name: 'Gallery Link ' + product.name,
+            }),
+          });
+          const cpData = await cpRes.json().catch(() => ({}));
+          if (!cpRes.ok) {
+            const detail = typeof cpData.details === 'object' ? ' · ' + JSON.stringify(cpData.details) : '';
+            throw new Error('create-project failed: ' + (cpData.error || cpRes.status) + detail);
+          }
+
+          if (cancelled) return;
+
+          setStage('redirecting');
+          try { localStorage.removeItem('encore'); } catch (_) {}
+          const urlParams = new URLSearchParams({
+            projectId: cpData.uuid,
+            familyId: String(cpData.familyId),
+            siteName: cpData.siteName,
+            ...personalizationParams,
+          });
+          if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
+          if (substitutedEditorParams) {
+            urlParams.set('editorParams', JSON.stringify(substitutedEditorParams));
+          }
+          window.location.href = '/editor/playground?' + urlParams.toString();
+          return;
         }
 
-        if (cancelled) return;
-
+        // ── editor flow: hand productId/attributeValues straight to
+        // setEditorConfig with photos in the sidebar (no backend round-trip).
         setStage('redirecting');
         try { localStorage.removeItem('encore'); } catch (_) {}
+        const photosForEditor = selectedPhotos.map((p) => ({
+          id: p.id,
+          name: (p.frame ? p.frame : p.id) + '.jpg',
+          downloadUrl: p.src,
+          publishTime: Date.now(),
+        }));
         const urlParams = new URLSearchParams({
-          projectId: cpData.uuid,
-          familyId: String(cpData.familyId),
-          siteName: cpData.siteName,
+          familyId: String(spec.familyId),
+          siteName: 'sales_demo',
+          photos: JSON.stringify(photosForEditor),
           ...personalizationParams,
         });
         if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
+        if (spec.attributeValues) urlParams.set('attributeValues', JSON.stringify(spec.attributeValues));
+        if (spec.slug) urlParams.set('productId', spec.slug);
+        else if (spec.productId) urlParams.set('productId', String(spec.productId));
+        if (substitutedEditorParams) {
+          urlParams.set('editorParams', JSON.stringify(substitutedEditorParams));
+        }
         window.location.href = '/editor/playground?' + urlParams.toString();
       } catch (e) {
         if (cancelled) return;

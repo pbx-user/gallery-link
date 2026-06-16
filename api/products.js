@@ -4,6 +4,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'pbxadmin';
 const PRODUCTS_PATH = 'gallery-link/products.json';
 
 const VALID_ORIENTATIONS = ['portrait', 'landscape', 'square'];
+const VALID_CREATION_METHODS = ['api', 'editor'];
 
 // Seed used the very first time admin loads and no blob exists yet.
 // Products can be EITHER flat (familyId + productId/slug/attributeValues
@@ -111,6 +112,17 @@ function hasSpec(o) {
   return hasProductId || hasSlug || hasAttrs;
 }
 
+function validateExtras(o, label) {
+  if (o.creationMethod != null && !VALID_CREATION_METHODS.includes(o.creationMethod)) {
+    return `${label}.creationMethod must be one of: ${VALID_CREATION_METHODS.join(', ')}`;
+  }
+  if (o.editorParams != null
+      && (typeof o.editorParams !== 'object' || Array.isArray(o.editorParams))) {
+    return `${label}.editorParams must be an object`;
+  }
+  return null;
+}
+
 function validateProduct(p, idx) {
   if (!p || typeof p !== 'object') return `products[${idx}] must be an object`;
   if (!p.id || typeof p.id !== 'string') return `products[${idx}].id is required (string)`;
@@ -152,7 +164,11 @@ function validateProduct(p, idx) {
       if (!hasSpec(variant)) {
         return `products[${idx}] (${p.id}).variants[${v}] needs one of: productId, slug, attributeValues`;
       }
+      const extrasErr = validateExtras(variant, `products[${idx}] (${p.id}).variants[${v}]`);
+      if (extrasErr) return extrasErr;
     }
+    const extrasErr = validateExtras(p, `products[${idx}] (${p.id})`);
+    if (extrasErr) return extrasErr;
     return null;
   }
 
@@ -161,6 +177,8 @@ function validateProduct(p, idx) {
   if (!hasSpec(p)) {
     return `products[${idx}] (${p.id}) needs one of: productId, slug, attributeValues (or define variants[])`;
   }
+  const extrasErr = validateExtras(p, `products[${idx}] (${p.id})`);
+  if (extrasErr) return extrasErr;
   return null;
 }
 

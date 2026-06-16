@@ -234,6 +234,26 @@
           <textarea id="f_attrs" placeholder='{"orientation": "horizontal", "size": "12x8", "theme": "concertFrame"}'></textarea>
           <div class="hint">JSON-owy obiekt z kluczami atrybutów (orientation, size, theme, frameColor, frameThickness...).</div>
         </div>
+
+        <label for="f_method">Creation method</label>
+        <select id="f_method">
+          <option value="">— auto (api jeśli numeric productId, else editor)</option>
+          <option value="api">api — POST /api/ec/v4/projects/ (backend tworzy projekt)</option>
+          <option value="editor">editor — productId/attributeValues prosto do setEditorConfig</option>
+        </select>
+
+        <label for="f_editorParams">Editor params (JSON, opcjonalne)</label>
+        <textarea id="f_editorParams" rows="6" placeholder='{
+  "personalizedPresentationContent": {
+    "version": 1,
+    "components": {
+      "bandName": "{{bandName}}",
+      "concertDnV": "{{concertDnV}}",
+      "photo1": "{{photo1}}"
+    }
+  }
+}'></textarea>
+        <div class="hint">Dodatkowe pola spreadowane do <code>setEditorConfig</code>. Stringi z placeholderami <code>{{bandName}}</code> / <code>{{concertDnV}}</code> / <code>{{customImageUrl}}</code> / <code>{{photo1}}</code> / <code>{{photo2}}</code>… są podstawiane runtime. Brak wartości w kontekście → klucz usuwany z output.</div>
       </div>
 
       <!-- ── Variants editor (when "Multiple variants" is on) ── -->
@@ -439,6 +459,8 @@ function openEditor(idx) {
   $('f_productId').value = p && !hasVariants && p.productId ? p.productId : '';
   $('f_slug').value = p && !hasVariants && p.slug ? p.slug : '';
   $('f_attrs').value = p && !hasVariants && p.attributeValues ? JSON.stringify(p.attributeValues, null, 2) : '';
+  $('f_method').value = p && !hasVariants && p.creationMethod ? p.creationMethod : '';
+  $('f_editorParams').value = p && !hasVariants && p.editorParams ? JSON.stringify(p.editorParams, null, 2) : '';
 
   // Variants list
   $('variantsList').innerHTML = '';
@@ -502,6 +524,19 @@ function addVariantRow(v) {
     <div class="spec-block" data-vspec="attributeValues">
       <textarea class="v_attrs" placeholder='{"orientation": "vertical", "size": "8x12", "theme": "concertFrame"}'></textarea>
     </div>
+    <div class="row">
+      <div>
+        <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500;">Creation method</label>
+        <select class="v_method">
+          <option value="">— auto</option>
+          <option value="api">api (POST /api/ec/v4/projects/)</option>
+          <option value="editor">editor (direct setEditorConfig)</option>
+        </select>
+      </div>
+      <div></div>
+    </div>
+    <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500; margin-top: 4px;">editorParams (JSON, opcjonalne — placeholdery {{bandName}}, {{photo1}}, …)</label>
+    <textarea class="v_editorParams" rows="5" placeholder='{"personalizedPresentationContent": {"version": 1, "components": {"bandName": "{{bandName}}", "photo1": "{{photo1}}"}}}'></textarea>
   `;
 
   const groupName = 'vspec_' + Math.random().toString(36).slice(2, 8);
@@ -518,6 +553,8 @@ function addVariantRow(v) {
   row.querySelector('.v_productId').value = v && v.productId ? v.productId : '';
   row.querySelector('.v_slug').value = v && v.slug ? v.slug : '';
   row.querySelector('.v_attrs').value = v && v.attributeValues ? JSON.stringify(v.attributeValues, null, 2) : '';
+  row.querySelector('.v_method').value = v && v.creationMethod ? v.creationMethod : '';
+  row.querySelector('.v_editorParams').value = v && v.editorParams ? JSON.stringify(v.editorParams, null, 2) : '';
 
   row.querySelector('.v_remove').addEventListener('click', () => row.remove());
   list.appendChild(row);
@@ -568,6 +605,18 @@ function readVariantsFromForm() {
         entry.attributeValues = obj;
       } catch (err) {
         throw new Error(`Variant ${i + 1} (${label}): niepoprawny JSON — ${err.message}`);
+      }
+    }
+    const method = row.querySelector('.v_method').value;
+    if (method) entry.creationMethod = method;
+    const epRaw = row.querySelector('.v_editorParams').value.trim();
+    if (epRaw) {
+      try {
+        const obj = JSON.parse(epRaw);
+        if (typeof obj !== 'object' || Array.isArray(obj)) throw new Error('musi być obiektem');
+        entry.editorParams = obj;
+      } catch (err) {
+        throw new Error(`Variant ${i + 1} (${label}): editorParams niepoprawny JSON — ${err.message}`);
       }
     }
     variants.push(entry);
@@ -641,6 +690,18 @@ $('productForm').addEventListener('submit', async (e) => {
         }
       } catch (err) {
         return flash('Niepoprawny JSON: ' + err.message, 'error');
+      }
+    }
+    const method = $('f_method').value;
+    if (method) productData.creationMethod = method;
+    const epRaw = $('f_editorParams').value.trim();
+    if (epRaw) {
+      try {
+        const obj = JSON.parse(epRaw);
+        if (typeof obj !== 'object' || Array.isArray(obj)) return flash('editorParams musi być obiektem JSON.', 'error');
+        productData.editorParams = obj;
+      } catch (err) {
+        return flash('editorParams niepoprawny JSON: ' + err.message, 'error');
       }
     }
   }
