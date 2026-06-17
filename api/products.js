@@ -21,6 +21,7 @@ const DEFAULT_PRODUCTS = [
     productId: '7605',
     minPhotos: 26,
     maxPhotos: 100,
+    allowOwnPhotos: true,
   },
   {
     id: 'cal',
@@ -119,6 +120,9 @@ function validateExtras(o, label) {
   if (o.editorParams != null
       && (typeof o.editorParams !== 'object' || Array.isArray(o.editorParams))) {
     return `${label}.editorParams must be an object`;
+  }
+  if (o.allowOwnPhotos != null && typeof o.allowOwnPhotos !== 'boolean') {
+    return `${label}.allowOwnPhotos must be a boolean`;
   }
   return null;
 }

@@ -174,7 +174,7 @@ function App() {
           productIdx={productIdx} setProductIdx={setProductIdx}
           selected={selected} toggleSelect={toggleSelect} maxBump={maxBump}
           reco={reco} onRecommend={onRecommend}
-          onContinue={() => navTo((PRODUCTS[productIdx] || PRODUCTS[0]).id === 'frame' ? 'done' : 'upload')}
+          onContinue={() => navTo((PRODUCTS[productIdx] || PRODUCTS[0]).allowOwnPhotos ? 'upload' : 'done')}
           onBack={goBack}
           onOpen={openLightbox}
         />

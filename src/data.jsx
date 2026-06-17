@@ -29,7 +29,7 @@ const EVENT_2 = {
 // PRODUCT_META below — keyed by id — so the cards stay nicely-decorated even
 // for products defined purely through admin.
 const DEFAULT_PRODUCTS = [
-  { id: 'book',  name: 'Photobook', thumbnailUrl: 'assets/photobook.jpg', familyId: '305', productId: '7605', minPhotos: 26, maxPhotos: 100 },
+  { id: 'book',  name: 'Photobook', thumbnailUrl: 'assets/photobook.jpg', familyId: '305', productId: '7605', minPhotos: 26, maxPhotos: 100, allowOwnPhotos: true },
   { id: 'cal',   name: 'Calendar',  thumbnailUrl: 'assets/calendar.jpg',  familyId: '220', productId: '5809', minPhotos: 13, maxPhotos: 36 },
   { id: 'frame', name: 'Frame',     thumbnailUrl: 'assets/frame.jpg', minPhotos: 1, maxPhotos: 1,
     variants: [

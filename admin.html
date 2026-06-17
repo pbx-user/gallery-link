@@ -205,6 +205,12 @@
       </label>
       <div class="hint">Włącz dla produktu który ma osobne ustawienia per orientacja zdjęcia (np. Frame portrait/landscape/square). Front pokaże jedną kartę i sam wybierze variant na bazie wybranego zdjęcia.</div>
 
+      <label class="checkbox-line" style="margin-top: 10px;">
+        <input type="checkbox" id="f_allowOwnPhotos">
+        <span>Pozwól użytkownikowi dodać własne zdjęcia (Upload step)</span>
+      </label>
+      <div class="hint">Domyślnie wyłączone. Włącz dla produktów typu Photobook gdzie sensownie mieszać zdjęcia z galerii z własnymi.</div>
+
       <!-- ── Flat product spec (when "Multiple variants" is off) ── -->
       <div id="flatSpec">
         <label for="f_family">productFamilyId *</label>
@@ -446,6 +452,7 @@ function openEditor(idx) {
   const hasVariants = !!(p && Array.isArray(p.variants) && p.variants.length > 0);
   $('f_useVariants').checked = hasVariants;
   toggleVariantsMode(hasVariants);
+  $('f_allowOwnPhotos').checked = !!(p && p.allowOwnPhotos);
 
   // Flat fields (used when not in variants mode)
   $('f_family').value = p && !hasVariants ? (p.familyId || '') : '';
@@ -663,6 +670,7 @@ $('productForm').addEventListener('submit', async (e) => {
   };
   const maxRaw = $('f_max').value.trim();
   if (maxRaw) productData.maxPhotos = parseInt(maxRaw, 10);
+  if ($('f_allowOwnPhotos').checked) productData.allowOwnPhotos = true;
 
   if (useVariants) {
     try {
