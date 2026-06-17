@@ -304,7 +304,6 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         const selectedPhotos = selectedIds
           .map((id) => concert.photos.find((p) => p.id === id))
           .filter(Boolean);
-        const photoUrls = selectedPhotos.map((p) => p.src);
 
         if (cancelled) return;
 
@@ -324,22 +323,55 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         };
         const spec = pickProductSpec(product, ctx);
 
-        // Optional: upload first own photo as personalization image.
-        let customImageUrl = null;
-        const ownFile = own && own.length > 0 ? own[0].file : null;
-        if (ownFile) {
+        // Upload every user-supplied photo to Vercel Blob in parallel — they
+        // all need a public URL before the project payload goes out.
+        let userPhotoUrls = [];
+        const ownFiles = (own || []).filter((o) => o && o.file);
+        if (ownFiles.length > 0) {
           setStage('uploading');
-          const upRes = await fetch('/api/upload-photo', {
-            method: 'POST',
-            headers: { 'Content-Type': ownFile.type || 'application/octet-stream' },
-            body: ownFile,
-          });
-          const upData = await upRes.json().catch(() => ({}));
-          if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
-          customImageUrl = upData.url;
+          userPhotoUrls = await Promise.all(ownFiles.map(async (o) => {
+            const upRes = await fetch('/api/upload-photo', {
+              method: 'POST',
+              headers: { 'Content-Type': o.file.type || 'application/octet-stream' },
+              body: o.file,
+            });
+            const upData = await upRes.json().catch(() => ({}));
+            if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
+            return upData.url;
+          }));
         }
+        const customImageUrl = userPhotoUrls[0] || null;
 
         if (cancelled) return;
+
+        // Combined photo arrays carry gallery shots AND every user upload.
+        // Backend/api flow consumes sources[] verbatim — user-supplied photos
+        // are tagged with metadata.caption = "gig-goer" so Smart Creation /
+        // downstream filters can distinguish them from the curated gallery.
+        const apiPhotoSources = [
+          ...selectedPhotos.map((p) => ({ original_photo_url: p.src })),
+          ...userPhotoUrls.map((url) => ({
+            original_photo_url: url,
+            metadata: { caption: 'gig-goer' },
+          })),
+        ];
+        // Editor-direct flow uses the photosToUploadForNewProject shape, which
+        // doesn't carry metadata — the caption distinction only lives in the
+        // /api/create-project path. Both photo sets land in the sidebar.
+        const editorPhotos = [
+          ...selectedPhotos.map((p) => ({
+            id: p.id,
+            name: (p.frame || p.id) + '.jpg',
+            downloadUrl: p.src,
+            publishTime: Date.now(),
+          })),
+          ...userPhotoUrls.map((url, i) => ({
+            id: 'own-' + i,
+            name: 'user-photo-' + (i + 1) + '.jpg',
+            downloadUrl: url,
+            publishTime: Date.now(),
+          })),
+        ];
 
         // Substitution context for editorParams placeholders.
         const tplCtx = {
@@ -368,7 +400,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
               familyId: spec.familyId,
               productId: spec.productId || undefined,
               attributes: spec.attributeValues || undefined,
-              photos: photoUrls,
+              photos: apiPhotoSources,
               name: 'Gallery Link ' + product.name,
             }),
           });
@@ -400,16 +432,10 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // setEditorConfig with photos in the sidebar (no backend round-trip).
         setStage('redirecting');
         try { localStorage.removeItem('encore'); } catch (_) {}
-        const photosForEditor = selectedPhotos.map((p) => ({
-          id: p.id,
-          name: (p.frame ? p.frame : p.id) + '.jpg',
-          downloadUrl: p.src,
-          publishTime: Date.now(),
-        }));
         const urlParams = new URLSearchParams({
           familyId: String(spec.familyId),
           siteName: 'sales_demo',
-          photos: JSON.stringify(photosForEditor),
+          photos: JSON.stringify(editorPhotos),
           ...personalizationParams,
         });
         if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);

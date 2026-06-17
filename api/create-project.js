@@ -116,7 +116,14 @@ function httpError(status, message, details) {
 
 function buildPhotoSources(custom, minRequired) {
   if (Array.isArray(custom) && custom.length > 0) {
-    return custom.map(url => ({ original_photo_url: url }));
+    // Each entry is either a plain URL string (legacy) or a rich source
+    // object — { original_photo_url, thumbnail_photo_url?, metadata?,
+    // external_id?, … } — that we forward to Printbox verbatim.
+    return custom.map((item) => {
+      if (typeof item === 'string') return { original_photo_url: item };
+      if (item && typeof item === 'object' && item.original_photo_url) return item;
+      return null;
+    }).filter(Boolean);
   }
   return DEMO_PHOTOS.slice(0, Math.max(minRequired || 1, 1));
 }
