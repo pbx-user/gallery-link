@@ -488,9 +488,20 @@ function addVariantRow(v) {
   const list = $('variantsList');
   const row = document.createElement('div');
   row.className = 'variant-row';
-  const usedOrientations = Array.from(list.querySelectorAll('select.v_orientation')).map((s) => s.value);
-  const defaultOri = ['landscape', 'portrait', 'square'].find((o) => !usedOrientations.includes(o)) || 'landscape';
-  const ori = v && v.orientation ? v.orientation : defaultOri;
+  // Auto-pick the next free orientation only when *adding a fresh row* via
+  // "+ Dodaj variant" (v === undefined). When loading an existing variant,
+  // honour whatever was saved — including the "any" case where orientation
+  // is undefined / null — otherwise reopening admin silently rewrites
+  // orientation:undefined into "landscape"/"portrait" and breaks band-only
+  // matching (variants disqualify themselves on a phantom orientation).
+  let ori = '';
+  if (v) {
+    ori = v.orientation || '';
+  } else {
+    const usedOrientations = Array.from(list.querySelectorAll('select.v_orientation'))
+      .map((s) => s.value).filter(Boolean);
+    ori = ['landscape', 'portrait', 'square'].find((o) => !usedOrientations.includes(o)) || 'landscape';
+  }
   const spec = v && v.attributeValues ? 'attributeValues' : v && v.slug ? 'slug' : 'productId';
 
   row.innerHTML = `
@@ -554,7 +565,7 @@ function addVariantRow(v) {
   });
   switchVariantSpec(row, spec);
 
-  row.querySelector('.v_orientation').value = v && v.orientation ? v.orientation : ori;
+  row.querySelector('.v_orientation').value = ori;
   row.querySelector('.v_band').value = v && v.band ? v.band : '';
   row.querySelector('.v_family').value = v && v.familyId ? v.familyId : '';
   row.querySelector('.v_productId').value = v && v.productId ? v.productId : '';
