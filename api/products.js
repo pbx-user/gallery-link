@@ -124,6 +124,9 @@ function validateExtras(o, label) {
   if (o.allowOwnPhotos != null && typeof o.allowOwnPhotos !== 'boolean') {
     return `${label}.allowOwnPhotos must be a boolean`;
   }
+  if (o.editorUrlSuffix != null && typeof o.editorUrlSuffix !== 'string') {
+    return `${label}.editorUrlSuffix must be a string`;
+  }
   return null;
 }
 

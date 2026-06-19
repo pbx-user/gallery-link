@@ -249,6 +249,14 @@ function pickVariantFromContext(variants, ctx) {
   return best || variants[0];
 }
 
+// editorUrlSuffix is appended verbatim to the final editor URL — admins
+// almost always start it with "&" but we auto-prefix when they forget so
+// "?a=b" + "dapi=…" still parses cleanly.
+function normalizeSuffix(s) {
+  if (!s) return '';
+  return (s[0] === '&' || s[0] === '?') ? s : '&' + s;
+}
+
 // For a product fetched from /api/products, pick the actual spec block that
 // will drive setEditorConfig. Variant products go through multi-criteria
 // matching; flat products carry the spec at the top level.
@@ -424,7 +432,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           if (substitutedEditorParams) {
             urlParams.set('editorParams', JSON.stringify(substitutedEditorParams));
           }
-          window.location.href = '/editor/playground?' + urlParams.toString();
+          window.location.href = '/editor/playground?' + urlParams.toString() + normalizeSuffix(spec.editorUrlSuffix);
           return;
         }
 
@@ -445,7 +453,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         if (substitutedEditorParams) {
           urlParams.set('editorParams', JSON.stringify(substitutedEditorParams));
         }
-        window.location.href = '/editor/playground?' + urlParams.toString();
+        window.location.href = '/editor/playground?' + urlParams.toString() + normalizeSuffix(spec.editorUrlSuffix);
       } catch (e) {
         if (cancelled) return;
         console.error('[done] handoff failed', e);

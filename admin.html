@@ -260,6 +260,10 @@
   }
 }'></textarea>
         <div class="hint">Dodatkowe pola spreadowane do <code>setEditorConfig</code>. Stringi z placeholderami <code>{{bandName}}</code> / <code>{{concertDnV}}</code> / <code>{{customImageUrl}}</code> / <code>{{photo1}}</code> / <code>{{photo2}}</code>… są podstawiane runtime. Brak wartości w kontekście → klucz usuwany z output.</div>
+
+        <label for="f_urlSuffix">Editor URL suffix (opcjonalne)</label>
+        <input id="f_urlSuffix" placeholder="&dapi=...&pbxEditorRelease=...&pbxAssetsRelease=...">
+        <div class="hint">Dokleja się literalnie do końca URL-a edytora (po wszystkich naszych paramach). Jeśli nie zaczyna się od <code>&amp;</code> lub <code>?</code> — automatycznie prefixujemy <code>&amp;</code>. Użyteczne dla Printbox release switchy / dapi.</div>
       </div>
 
       <!-- ── Variants editor (when "Multiple variants" is on) ── -->
@@ -468,6 +472,7 @@ function openEditor(idx) {
   $('f_attrs').value = p && !hasVariants && p.attributeValues ? JSON.stringify(p.attributeValues, null, 2) : '';
   $('f_method').value = p && !hasVariants && p.creationMethod ? p.creationMethod : '';
   $('f_editorParams').value = p && !hasVariants && p.editorParams ? JSON.stringify(p.editorParams, null, 2) : '';
+  $('f_urlSuffix').value = p && !hasVariants && p.editorUrlSuffix ? p.editorUrlSuffix : '';
 
   // Variants list
   $('variantsList').innerHTML = '';
@@ -555,6 +560,8 @@ function addVariantRow(v) {
     </div>
     <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500; margin-top: 4px;">editorParams (JSON, opcjonalne — placeholdery {{bandName}}, {{photo1}}, …)</label>
     <textarea class="v_editorParams" rows="5" placeholder='{"personalizedPresentationContent": {"version": 1, "components": {"bandName": "{{bandName}}", "photo1": "{{photo1}}"}}}'></textarea>
+    <label style="text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint); font-weight: 500; margin-top: 4px;">Editor URL suffix (opcjonalne — np. &amp;dapi=...&amp;pbxEditorRelease=...)</label>
+    <input class="v_urlSuffix" placeholder="&dapi=...&pbxEditorRelease=...&pbxAssetsRelease=...">
   `;
 
   const groupName = 'vspec_' + Math.random().toString(36).slice(2, 8);
@@ -573,6 +580,7 @@ function addVariantRow(v) {
   row.querySelector('.v_attrs').value = v && v.attributeValues ? JSON.stringify(v.attributeValues, null, 2) : '';
   row.querySelector('.v_method').value = v && v.creationMethod ? v.creationMethod : '';
   row.querySelector('.v_editorParams').value = v && v.editorParams ? JSON.stringify(v.editorParams, null, 2) : '';
+  row.querySelector('.v_urlSuffix').value = v && v.editorUrlSuffix ? v.editorUrlSuffix : '';
 
   row.querySelector('.v_remove').addEventListener('click', () => row.remove());
   list.appendChild(row);
@@ -637,6 +645,8 @@ function readVariantsFromForm() {
         throw new Error(`Variant ${i + 1} (${label}): editorParams niepoprawny JSON — ${err.message}`);
       }
     }
+    const suffix = row.querySelector('.v_urlSuffix').value.trim();
+    if (suffix) entry.editorUrlSuffix = suffix;
     variants.push(entry);
   }
   return variants;
@@ -723,6 +733,8 @@ $('productForm').addEventListener('submit', async (e) => {
         return flash('editorParams niepoprawny JSON: ' + err.message, 'error');
       }
     }
+    const suffix = $('f_urlSuffix').value.trim();
+    if (suffix) productData.editorUrlSuffix = suffix;
   }
 
   const next = products.slice();
