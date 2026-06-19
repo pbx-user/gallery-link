@@ -8,7 +8,7 @@ const SELFIE = 'https://images.unsplash.com/photo-1722608274468-06938c516fba?aut
 // `own` / `setOwn` are lifted to App so DoneScreen can access the raw File
 // for the personalization upload to /api/upload-photo.
 function UploadScreen({ desktop, product, own, setOwn, onBack, onFinish }) {
-  const MAX = 7;
+  const MAX = 3;
   const inputRef = useRefU(null);
   const pick = () => inputRef.current && inputRef.current.click();
   const onFiles = (e) => {
