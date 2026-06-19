@@ -257,6 +257,42 @@ function normalizeSuffix(s) {
   return (s[0] === '&' || s[0] === '?') ? s : '&' + s;
 }
 
+// Vercel serverless functions cap body at ~4.5 MB; phone shots routinely
+// exceed that. Re-encode anything over 4 MB to a max-3500px JPEG so the
+// upload to /api/upload-photo always lands. Smaller files pass through
+// untouched to preserve original quality / format (incl. PNG transparency).
+async function compressImageIfNeeded(file) {
+  const SAFE_BYTES = 4 * 1024 * 1024;
+  const MAX_DIM = 3500;
+  const QUALITY = 0.85;
+  if (file.size <= SAFE_BYTES) return file;
+
+  const objUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('Cannot decode image: ' + file.name));
+      i.src = objUrl;
+    });
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const scale = Math.min(1, MAX_DIM / Math.max(w, h));
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')), 'image/jpeg', QUALITY);
+    });
+    const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    console.log('[upload] compressed', file.name, file.size, '→', blob.size, '(' + w + 'x' + h + ')');
+    return new File([blob], newName, { type: 'image/jpeg', lastModified: file.lastModified });
+  } finally {
+    URL.revokeObjectURL(objUrl);
+  }
+}
+
 // For a product fetched from /api/products, pick the actual spec block that
 // will drive setEditorConfig. Variant products go through multi-criteria
 // matching; flat products carry the spec at the top level.
@@ -332,16 +368,19 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         const spec = pickProductSpec(product, ctx);
 
         // Upload every user-supplied photo to Vercel Blob in parallel — they
-        // all need a public URL before the project payload goes out.
+        // all need a public URL before the project payload goes out. Files
+        // over the Vercel function body limit (~4.5 MB) get re-encoded
+        // client-side first so the POST always lands.
         let userPhotoUrls = [];
         const ownFiles = (own || []).filter((o) => o && o.file);
         if (ownFiles.length > 0) {
           setStage('uploading');
           userPhotoUrls = await Promise.all(ownFiles.map(async (o) => {
+            const blob = await compressImageIfNeeded(o.file);
             const upRes = await fetch('/api/upload-photo', {
               method: 'POST',
-              headers: { 'Content-Type': o.file.type || 'application/octet-stream' },
-              body: o.file,
+              headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+              body: blob,
             });
             const upData = await upRes.json().catch(() => ({}));
             if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
