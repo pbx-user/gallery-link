@@ -198,13 +198,14 @@ const PHOTOS = [
   P('1577648884063-1d3d1477b8a7', 0.80, { g: 2, frame: '1389' }),
 ];
 
-// Real Pulse Engine gallery — uploaded to Vercel Blob 2026-06-17. Each URL is
-// fully random-suffixed because Blob `put({ addRandomSuffix: true })` runs per
-// upload; storing the URLs verbatim here is the simplest path until/unless
-// they move to a deterministic bucket layout (e.g. GCS pulse-engine/<n>.jpg).
-const PE = (id, url, w, h, opt = {}) => ({
-  id: 'pe-' + id,
-  src: url,
+// Real Pulse Engine gallery — same GCS bucket as Withered Crown, just under
+// concertgallery/pulse-engine/. Was on Vercel Blob initially (2026-06-17)
+// until thumbnails got generated on GCS (2026-06-22), so we switched over to
+// pick up deriveThumbUrl()'s _versions/<file>_large.<ext> sibling for free.
+const PE_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery/pulse-engine';
+const PE = (slug, w, h, opt = {}) => ({
+  id: 'pe-' + slug,
+  src: `${PE_BASE}/${slug}.jpg`,
   ar: h / w,
   hero: !!opt.hero,
   pick: !!opt.pick,
@@ -213,20 +214,20 @@ const PE = (id, url, w, h, opt = {}) => ({
 });
 
 const PULSE_PHOTOS = [
-  PE('01', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-qPLfE4RaYLvHSddkMfrYCM2smtOVDn.jpeg', 1024, 1024, { pick: true,             g: 0, frame: 'PE01' }),
-  PE('02', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-ShYMINled9p2NKLnmajN2l4ektOZMV.jpeg', 1264, 848,  { hero: true,             g: 1, frame: 'PE02' }),
-  PE('03', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-aIDAiCb2U19AKbdQS3emKf6Bhz00gJ.jpeg', 848,  1264, { hero: true, pick: true, g: 2, frame: 'PE03' }),
-  PE('04', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-ObHhSBzcPNIVVoOVcS2BW7q7WI407U.jpeg', 1024, 1024, {                         g: 3, frame: 'PE04' }),
-  PE('05', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-9N2nymO4rmgENBmscRjZEZW8TTkQL2.jpeg', 1264, 848,  { pick: true,             g: 4, frame: 'PE05' }),
-  PE('06', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-3LnZ1tT6oRcZR4BEvsKJ0liajpUzLT.jpeg', 848,  1264, {                         g: 5, frame: 'PE06' }),
-  PE('07', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-TcM1C6soLvNDTkv3xLO90ER59Ut3YR.jpeg', 1024, 1024, { pick: true,             g: 0, frame: 'PE07' }),
-  PE('08', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-ZsHEoFRcmskC53kBB6jyMQm2V3pRVn.jpeg', 1264, 848,  { hero: true,             g: 1, frame: 'PE08' }),
-  PE('09', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-rNE17YKicNaA1YmTf5DkuW0hzOELkP.jpeg', 848,  1264, {                         g: 2, frame: 'PE09' }),
-  PE('10', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-uIrjoXFaCDnI4XGNPIsxB7m3uG3s2s.jpeg', 1264, 848,  {                         g: 3, frame: 'PE10' }),
-  PE('11', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-wvKexRFXFo6Fgq2DjkPKeDLv42Fzv8.jpeg', 1024, 1024, { hero: true,             g: 4, frame: 'PE11' }),
-  PE('12', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-xipsaMB3C88awTAe1Ginvqc9iZfDdl.jpeg', 848,  1264, { pick: true,             g: 5, frame: 'PE12' }),
-  PE('13', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-O35Yp6t7OMlNgS3nEFchFn9aTKFwca.jpeg', 1264, 848,  {                         g: 0, frame: 'PE13' }),
-  PE('14', 'https://cy3pidjsuryihvln.public.blob.vercel-storage.com/gallery-link/customer-image-EGRRPEJpHK8FsYPN4yOVXDGIdMI8ca.jpeg', 848,  1264, {                         g: 1, frame: 'PE14' }),
+  PE('1',  1024, 1024, { pick: true,             g: 0, frame: 'PE01' }),
+  PE('2',  1264, 848,  { hero: true,             g: 1, frame: 'PE02' }),
+  PE('3',  848,  1264, { hero: true, pick: true, g: 2, frame: 'PE03' }),
+  PE('4',  1024, 1024, {                         g: 3, frame: 'PE04' }),
+  PE('5',  1264, 848,  { pick: true,             g: 4, frame: 'PE05' }),
+  PE('6',  848,  1264, {                         g: 5, frame: 'PE06' }),
+  PE('7',  1024, 1024, { pick: true,             g: 0, frame: 'PE07' }),
+  PE('8',  1264, 848,  { hero: true,             g: 1, frame: 'PE08' }),
+  PE('9',  848,  1264, {                         g: 2, frame: 'PE09' }),
+  PE('10', 1264, 848,  {                         g: 3, frame: 'PE10' }),
+  PE('11', 1024, 1024, { hero: true,             g: 4, frame: 'PE11' }),
+  PE('12', 848,  1264, { pick: true,             g: 5, frame: 'PE12' }),
+  PE('13', 1264, 848,  {                         g: 0, frame: 'PE13' }),
+  PE('14', 848,  1264, {                         g: 1, frame: 'PE14' }),
 ];
 
 // Concert 2 placeholder pool — Unsplash shots kept around for volume until
