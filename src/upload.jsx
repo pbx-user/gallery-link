@@ -414,12 +414,14 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
 
         if (cancelled) return;
 
-        // Personalization text fields shared by both branches.
-        const personalizationParams = {};
-        if (concert.artist) personalizationParams.bandName = concert.artist;
-        if (concert.date || concert.venue) {
-          personalizationParams.concertDnV = [concert.date, concert.venue].filter(Boolean).join(' · ');
-        }
+        // Concert metadata feeds into the editorParams placeholder substitution
+        // (see tplCtx below) — it gets baked into the substituted JSON we hand
+        // to setEditorConfig. We no longer mirror it as separate URL params:
+        // the editor shell doesn't read them anymore (the per-key fallback was
+        // dropped a while back) and the duplicate values just bloated the URL.
+        const concertDnV = (concert.date || concert.venue)
+          ? [concert.date, concert.venue].filter(Boolean).join(' · ')
+          : '';
 
         // Variant matching context: photo orientation drives Frame variants;
         // concert.artist drives band-keyed variants (Photobook per band, or
@@ -530,7 +532,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // Substitution context for editorParams placeholders.
         const tplCtx = {
           bandName: concert.artist || '',
-          concertDnV: personalizationParams.concertDnV || '',
+          concertDnV,
           customImageUrl: customImageUrl || '',
         };
         selectedPhotos.forEach((p, i) => { tplCtx['photo' + (i + 1)] = p.src; });
@@ -572,9 +574,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             projectId: cpData.uuid,
             familyId: String(cpData.familyId),
             siteName: cpData.siteName,
-            ...personalizationParams,
           });
-          if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
           if (substitutedEditorParams) {
             urlParams.set('editorParams', JSON.stringify(substitutedEditorParams));
           }
@@ -590,9 +590,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           familyId: String(spec.familyId),
           siteName: 'sales_demo',
           photos: JSON.stringify(editorPhotos),
-          ...personalizationParams,
         });
-        if (customImageUrl) urlParams.set('customImageUrl', customImageUrl);
         if (spec.attributeValues) urlParams.set('attributeValues', JSON.stringify(spec.attributeValues));
         if (spec.slug) urlParams.set('productId', spec.slug);
         else if (spec.productId) urlParams.set('productId', String(spec.productId));
