@@ -273,65 +273,27 @@ function deriveThumbUrl(url) {
   return base + '/_versions/' + path + '_large.' + ext + (query || '');
 }
 
-// Hash the exact bytes we're about to upload — used as the dedup key on
-// both the localStorage cache and the server-side filename. SHA-256 is
-// overkill in cryptographic terms but everyone has it and the digest is
-// short enough to fit comfortably in a URL.
-async function sha256Hex(blob) {
-  const buf = await blob.arrayBuffer();
-  const digest = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
+// Demo gig-goer photos pre-uploaded to GCS. When the user picks one of these
+// filenames from the Upload step, we skip /api/upload-photo entirely and
+// reference the hosted URL + its parallel _versions thumb directly. Keeps
+// the demo cheap on Vercel Blob and lets Printbox use external storage
+// straight away. Anything else falls through to a plain Blob upload below.
+const GIG_GOER_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/concertgallery';
+const GIG_GOER_THUMB_BASE = 'https://storage.googleapis.com/pbx2-sales-demo/media/uploads/_versions/concertgallery';
+const GIG_GOER_PHOTOS = {
+  'gig-goers-outside.jpg':  { url: GIG_GOER_BASE + '/gig-goers-outside.jpg',  thumb: GIG_GOER_THUMB_BASE + '/gig-goers-outside_large.jpg' },
+  'gig-goers-selfie.jpg':   { url: GIG_GOER_BASE + '/gig-goers-selfie.jpg',   thumb: GIG_GOER_THUMB_BASE + '/gig-goers-selfie_large.jpg' },
+  'gig-goers-selfie-2.jpg': { url: GIG_GOER_BASE + '/gig-goers-selfie-2.jpg', thumb: GIG_GOER_THUMB_BASE + '/gig-goers-selfie-2_large.jpg' },
+};
 
-// Same-session localStorage cache so a re-upload of the exact same file
-// resolves instantly without even hitting the network.
-const UPLOAD_CACHE_KEY = 'pbx-upload-cache-v1';
-function getCachedUploadUrl(hash) {
-  try {
-    const cache = JSON.parse(localStorage.getItem(UPLOAD_CACHE_KEY) || '{}');
-    return cache[hash] || null;
-  } catch (_) { return null; }
-}
-function cacheUploadUrl(hash, url) {
-  try {
-    const cache = JSON.parse(localStorage.getItem(UPLOAD_CACHE_KEY) || '{}');
-    cache[hash] = url;
-    localStorage.setItem(UPLOAD_CACHE_KEY, JSON.stringify(cache));
-  } catch (_) {}
-}
-
-// Three-tier upload resolution: localStorage cache → backend HEAD check
-// (cheap, no body) → full POST. Returns the public URL of the stored blob.
-async function uploadOrDedup(blob) {
-  const hash = await sha256Hex(blob);
-
-  const cached = getCachedUploadUrl(hash);
-  if (cached) {
-    console.log('[upload] localStorage hit', hash.slice(0, 8) + '… →', cached);
-    return cached;
-  }
-
-  // Cross-session / cross-device dedup: ask backend if this hash exists.
-  try {
-    const checkRes = await fetch('/api/upload-photo?hash=' + hash);
-    if (checkRes.ok) {
-      const data = await checkRes.json();
-      if (data && data.url) {
-        console.log('[upload] server dedup', hash.slice(0, 8) + '… →', data.url);
-        cacheUploadUrl(hash, data.url);
-        return data.url;
-      }
-    }
-  } catch (_) { /* fall through to full upload */ }
-
-  const upRes = await fetch('/api/upload-photo?hash=' + hash, {
+async function uploadToBlob(blob) {
+  const upRes = await fetch('/api/upload-photo', {
     method: 'POST',
     headers: { 'Content-Type': blob.type || 'application/octet-stream' },
     body: blob,
   });
   const upData = await upRes.json().catch(() => ({}));
   if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
-  cacheUploadUrl(hash, upData.url);
   return upData.url;
 }
 
@@ -468,20 +430,30 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         };
         const spec = pickProductSpec(product, ctx);
 
-        // Upload every user-supplied photo to Vercel Blob in parallel — they
-        // all need a public URL before the project payload goes out. Files
-        // over the Vercel function body limit (~4.5 MB) get re-encoded
-        // client-side first so the POST always lands. Dimensions + mimetype
-        // travel alongside the URL so we can populate Printbox's required
-        // metadata.{width,height,mimetype} when original_photo_storage is
-        // "external".
+        // Resolve every user-supplied photo to a public URL. Filenames in
+        // GIG_GOER_PHOTOS short-circuit to their pre-hosted GCS URL (+ thumb)
+        // without ever touching Vercel Blob — that's the demo-day common
+        // case. Anything else compresses (when > 4 MB) and POSTs to
+        // /api/upload-photo with a random suffix. Dimensions + mimetype come
+        // along so we can populate Printbox's metadata when external storage
+        // gets used downstream.
         let uploadedUserPhotos = [];
         const ownFiles = (own || []).filter((o) => o && o.file);
         if (ownFiles.length > 0) {
           setStage('uploading');
           uploadedUserPhotos = await Promise.all(ownFiles.map(async (o) => {
-            const prep = await prepareUserUpload(o.file);
-            const url = await uploadOrDedup(prep.blob);
+            const known = GIG_GOER_PHOTOS[o.file.name];
+            const prep = await prepareUserUpload(o.file);  // also reads dims
+            if (known) {
+              return {
+                url: known.url,
+                thumbnailUrl: known.thumb,
+                width: prep.width,
+                height: prep.height,
+                mimetype: prep.mimetype,
+              };
+            }
+            const url = await uploadToBlob(prep.blob);
             return { url, width: prep.width, height: prep.height, mimetype: prep.mimetype };
           }));
         }
@@ -519,8 +491,10 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
             }
             return src;
           }),
-          ...uploadedUserPhotos.map(({ url, width, height, mimetype }) => {
-            const thumb = deriveThumbUrl(url);
+          ...uploadedUserPhotos.map(({ url, thumbnailUrl, width, height, mimetype }) => {
+            // Known gig-goer files come with an explicit thumbnailUrl from the
+            // hardcoded map; off-script Blob uploads have no parallel thumb.
+            const thumb = thumbnailUrl || deriveThumbUrl(url);
             const src = {
               original_photo_url: url,
               metadata: { caption: 'gig-goer' },
