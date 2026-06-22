@@ -257,6 +257,22 @@ function normalizeSuffix(s) {
   return (s[0] === '&' || s[0] === '?') ? s : '&' + s;
 }
 
+// Printbox / GCS storage convention: photos uploaded at
+//   /media/uploads/<path>/<file>.<ext>
+// have their generated thumbnail at
+//   /media/uploads/_versions/<path>/<file>_large.<ext>
+// We derive that URL and pass it as thumbnail_photo_url to /api/ec/v4/projects/
+// so Printbox doesn't need to regenerate a thumbnail before showing the photo
+// in the editor. Returns null for non-GCS URLs (Vercel Blob user uploads, etc.) —
+// callers should just omit thumbnail_photo_url when null. Printbox falls back
+// to the original on missing/403 thumbs at ingest time.
+function deriveThumbUrl(url) {
+  const m = String(url).match(/^(https:\/\/storage\.googleapis\.com\/[^/]+\/media\/uploads)\/(.+)\.([a-zA-Z]+)(\?.*)?$/);
+  if (!m) return null;
+  const [, base, path, ext, query] = m;
+  return base + '/_versions/' + path + '_large.' + ext + (query || '');
+}
+
 // Vercel serverless functions cap body at ~4.5 MB; phone shots routinely
 // exceed that. Re-encode anything over 4 MB to a max-3500px JPEG so the
 // upload to /api/upload-photo always lands. Smaller files pass through
@@ -395,12 +411,22 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // Backend/api flow consumes sources[] verbatim — user-supplied photos
         // are tagged with metadata.caption = "gig-goer" so Smart Creation /
         // downstream filters can distinguish them from the curated gallery.
+        // thumbnail_photo_url is included when it can be derived (GCS originals
+        // map to a /_versions/<path>_large.<ext> sibling); for Vercel Blob
+        // uploads there's no thumb so we skip the key.
         const apiPhotoSources = [
-          ...selectedPhotos.map((p) => ({ original_photo_url: p.src })),
-          ...userPhotoUrls.map((url) => ({
-            original_photo_url: url,
-            metadata: { caption: 'gig-goer' },
-          })),
+          ...selectedPhotos.map((p) => {
+            const src = { original_photo_url: p.src };
+            const thumb = deriveThumbUrl(p.src);
+            if (thumb) src.thumbnail_photo_url = thumb;
+            return src;
+          }),
+          ...userPhotoUrls.map((url) => {
+            const src = { original_photo_url: url, metadata: { caption: 'gig-goer' } };
+            const thumb = deriveThumbUrl(url);
+            if (thumb) src.thumbnail_photo_url = thumb;
+            return src;
+          }),
         ];
         // Editor-direct flow uses the photosToUploadForNewProject shape, which
         // doesn't carry metadata — the caption distinction only lives in the
