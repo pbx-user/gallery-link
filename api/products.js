@@ -1,6 +1,9 @@
 const { put, list } = require('@vercel/blob');
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'pbxadmin';
+// Required env var — no fallback. Missing => admin is locked out (POST returns
+// 401 for every attempt) so the previous public default ("pbxadmin") can't
+// be used to bypass auth in an under-configured deployment.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const PRODUCTS_PATH = 'gallery-link/products.json';
 
 const VALID_ORIENTATIONS = ['portrait', 'landscape', 'square'];
@@ -203,7 +206,7 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST' || req.method === 'PUT') {
     const password = req.headers['x-admin-password'];
-    if (!password || password !== ADMIN_PASSWORD) {
+    if (!ADMIN_PASSWORD || !password || password !== ADMIN_PASSWORD) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
