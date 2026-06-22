@@ -96,15 +96,21 @@ const GRADS = [
 // professional-looking concert shots (Unsplash). Each tile keeps a gradient
 // behind it; if the photo fails the gradient shows through.
 const U = (id, w) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=72`;
-const P = (id, ar, opt = {}) => ({
-  id: 'm' + id,
-  src: U(id, opt.hero ? 900 : 560),
-  ar,                       // aspect ratio h/w for masonry height
-  hero: !!opt.hero,
-  pick: !!opt.pick,
-  grad: GRADS[(opt.g ?? 0) % GRADS.length],
-  frame: opt.frame,
-});
+const P = (id, ar, opt = {}) => {
+  const w = opt.hero ? 900 : 560;
+  return {
+    id: 'm' + id,
+    src: U(id, w),
+    ar,                       // aspect ratio h/w for masonry height
+    width: w,                 // Unsplash transform forces this width
+    height: Math.round(w * ar),
+    mimetype: 'image/jpeg',
+    hero: !!opt.hero,
+    pick: !!opt.pick,
+    grad: GRADS[(opt.g ?? 0) % GRADS.length],
+    frame: opt.frame,
+  };
+};
 
 // Real Withered Crown gallery uploaded to GCS (2026-06-12). The bucket path
 // uses "witthered" (two t's) intentionally — that's how the assets are
@@ -114,6 +120,9 @@ const WC = (slug, w, h, opt = {}) => ({
   id: 'wc-' + slug,
   src: `${WC_BASE}/${slug}.jpg`,
   ar: h / w,
+  width: w,
+  height: h,
+  mimetype: 'image/jpeg',
   hero: !!opt.hero,
   pick: !!opt.pick,
   grad: GRADS[(opt.g ?? 0) % GRADS.length],
@@ -207,6 +216,9 @@ const PE = (slug, w, h, opt = {}) => ({
   id: 'pe-' + slug,
   src: `${PE_BASE}/${slug}.jpg`,
   ar: h / w,
+  width: w,
+  height: h,
+  mimetype: 'image/jpeg',
   hero: !!opt.hero,
   pick: !!opt.pick,
   grad: GRADS[(opt.g ?? 0) % GRADS.length],

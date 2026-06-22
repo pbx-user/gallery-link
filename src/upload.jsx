@@ -335,37 +335,60 @@ async function uploadOrDedup(blob) {
   return upData.url;
 }
 
-// Vercel serverless functions cap body at ~4.5 MB; phone shots routinely
-// exceed that. Re-encode anything over 4 MB to a max-3500px JPEG so the
-// upload to /api/upload-photo always lands. Smaller files pass through
-// untouched to preserve original quality / format (incl. PNG transparency).
-async function compressImageIfNeeded(file) {
+// Decode the user-supplied file: read its pixel dimensions, compress (re-
+// encode to max-3500px JPEG @0.85) when it'd otherwise exceed Vercel's
+// ~4.5 MB function body cap. Always returns the dims + mimetype that match
+// the blob we hand off to upload, so we can drop them into Printbox's
+// required metadata.{width,height,mimetype} on the projects/create payload.
+async function prepareUserUpload(file) {
   const SAFE_BYTES = 4 * 1024 * 1024;
   const MAX_DIM = 3500;
   const QUALITY = 0.85;
-  if (file.size <= SAFE_BYTES) return file;
 
   const objUrl = URL.createObjectURL(file);
+  let img;
   try {
-    const img = await new Promise((resolve, reject) => {
+    img = await new Promise((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
       i.onerror = () => reject(new Error('Cannot decode image: ' + file.name));
       i.src = objUrl;
     });
-    let w = img.naturalWidth, h = img.naturalHeight;
-    const scale = Math.min(1, MAX_DIM / Math.max(w, h));
-    w = Math.max(1, Math.round(w * scale));
-    h = Math.max(1, Math.round(h * scale));
+  } catch (e) {
+    URL.revokeObjectURL(objUrl);
+    throw e;
+  }
+  const origW = img.naturalWidth;
+  const origH = img.naturalHeight;
+
+  if (file.size <= SAFE_BYTES) {
+    URL.revokeObjectURL(objUrl);
+    return {
+      blob: file,
+      width: origW,
+      height: origH,
+      mimetype: file.type || 'image/jpeg',
+    };
+  }
+
+  try {
+    const scale = Math.min(1, MAX_DIM / Math.max(origW, origH));
+    const w = Math.max(1, Math.round(origW * scale));
+    const h = Math.max(1, Math.round(origH * scale));
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-    const blob = await new Promise((resolve, reject) => {
+    const compressed = await new Promise((resolve, reject) => {
       canvas.toBlob((b) => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')), 'image/jpeg', QUALITY);
     });
     const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-    console.log('[upload] compressed', file.name, file.size, '→', blob.size, '(' + w + 'x' + h + ')');
-    return new File([blob], newName, { type: 'image/jpeg', lastModified: file.lastModified });
+    console.log('[upload] compressed', file.name, file.size, '→', compressed.size, '(' + w + 'x' + h + ')');
+    return {
+      blob: new File([compressed], newName, { type: 'image/jpeg', lastModified: file.lastModified }),
+      width: w,
+      height: h,
+      mimetype: 'image/jpeg',
+    };
   } finally {
     URL.revokeObjectURL(objUrl);
   }
@@ -448,16 +471,21 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // Upload every user-supplied photo to Vercel Blob in parallel — they
         // all need a public URL before the project payload goes out. Files
         // over the Vercel function body limit (~4.5 MB) get re-encoded
-        // client-side first so the POST always lands.
-        let userPhotoUrls = [];
+        // client-side first so the POST always lands. Dimensions + mimetype
+        // travel alongside the URL so we can populate Printbox's required
+        // metadata.{width,height,mimetype} when original_photo_storage is
+        // "external".
+        let uploadedUserPhotos = [];
         const ownFiles = (own || []).filter((o) => o && o.file);
         if (ownFiles.length > 0) {
           setStage('uploading');
-          userPhotoUrls = await Promise.all(ownFiles.map(async (o) => {
-            const blob = await compressImageIfNeeded(o.file);
-            return uploadOrDedup(blob);
+          uploadedUserPhotos = await Promise.all(ownFiles.map(async (o) => {
+            const prep = await prepareUserUpload(o.file);
+            const url = await uploadOrDedup(prep.blob);
+            return { url, width: prep.width, height: prep.height, mimetype: prep.mimetype };
           }));
         }
+        const userPhotoUrls = uploadedUserPhotos.map((u) => u.url);
         const customImageUrl = userPhotoUrls[0] || null;
 
         if (cancelled) return;
@@ -473,16 +501,29 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // URLs directly instead of mirroring the bytes into its own bucket.
         const apiPhotoSources = [
           ...selectedPhotos.map((p) => {
-            const src = { original_photo_url: p.src, original_photo_storage: 'external' };
+            const src = {
+              original_photo_url: p.src,
+              original_photo_storage: 'external',
+              metadata: {
+                width: p.width,
+                height: p.height,
+                mimetype: p.mimetype || 'image/jpeg',
+              },
+            };
             const thumb = deriveThumbUrl(p.src);
             if (thumb) src.thumbnail_photo_url = thumb;
             return src;
           }),
-          ...userPhotoUrls.map((url) => {
+          ...uploadedUserPhotos.map(({ url, width, height, mimetype }) => {
             const src = {
               original_photo_url: url,
               original_photo_storage: 'external',
-              metadata: { caption: 'gig-goer' },
+              metadata: {
+                caption: 'gig-goer',
+                width,
+                height,
+                mimetype: mimetype || 'image/jpeg',
+              },
             };
             const thumb = deriveThumbUrl(url);
             if (thumb) src.thumbnail_photo_url = thumb;
