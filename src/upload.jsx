@@ -469,15 +469,21 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // thumbnail_photo_url is included when it can be derived (GCS originals
         // map to a /_versions/<path>_large.<ext> sibling); for Vercel Blob
         // uploads there's no thumb so we skip the key.
+        // original_photo_storage: "external" tells Printbox to reference our
+        // URLs directly instead of mirroring the bytes into its own bucket.
         const apiPhotoSources = [
           ...selectedPhotos.map((p) => {
-            const src = { original_photo_url: p.src };
+            const src = { original_photo_url: p.src, original_photo_storage: 'external' };
             const thumb = deriveThumbUrl(p.src);
             if (thumb) src.thumbnail_photo_url = thumb;
             return src;
           }),
           ...userPhotoUrls.map((url) => {
-            const src = { original_photo_url: url, metadata: { caption: 'gig-goer' } };
+            const src = {
+              original_photo_url: url,
+              original_photo_storage: 'external',
+              metadata: { caption: 'gig-goer' },
+            };
             const thumb = deriveThumbUrl(url);
             if (thumb) src.thumbnail_photo_url = thumb;
             return src;
