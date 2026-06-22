@@ -273,6 +273,68 @@ function deriveThumbUrl(url) {
   return base + '/_versions/' + path + '_large.' + ext + (query || '');
 }
 
+// Hash the exact bytes we're about to upload — used as the dedup key on
+// both the localStorage cache and the server-side filename. SHA-256 is
+// overkill in cryptographic terms but everyone has it and the digest is
+// short enough to fit comfortably in a URL.
+async function sha256Hex(blob) {
+  const buf = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Same-session localStorage cache so a re-upload of the exact same file
+// resolves instantly without even hitting the network.
+const UPLOAD_CACHE_KEY = 'pbx-upload-cache-v1';
+function getCachedUploadUrl(hash) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(UPLOAD_CACHE_KEY) || '{}');
+    return cache[hash] || null;
+  } catch (_) { return null; }
+}
+function cacheUploadUrl(hash, url) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(UPLOAD_CACHE_KEY) || '{}');
+    cache[hash] = url;
+    localStorage.setItem(UPLOAD_CACHE_KEY, JSON.stringify(cache));
+  } catch (_) {}
+}
+
+// Three-tier upload resolution: localStorage cache → backend HEAD check
+// (cheap, no body) → full POST. Returns the public URL of the stored blob.
+async function uploadOrDedup(blob) {
+  const hash = await sha256Hex(blob);
+
+  const cached = getCachedUploadUrl(hash);
+  if (cached) {
+    console.log('[upload] localStorage hit', hash.slice(0, 8) + '… →', cached);
+    return cached;
+  }
+
+  // Cross-session / cross-device dedup: ask backend if this hash exists.
+  try {
+    const checkRes = await fetch('/api/upload-photo?hash=' + hash);
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      if (data && data.url) {
+        console.log('[upload] server dedup', hash.slice(0, 8) + '… →', data.url);
+        cacheUploadUrl(hash, data.url);
+        return data.url;
+      }
+    }
+  } catch (_) { /* fall through to full upload */ }
+
+  const upRes = await fetch('/api/upload-photo?hash=' + hash, {
+    method: 'POST',
+    headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+    body: blob,
+  });
+  const upData = await upRes.json().catch(() => ({}));
+  if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
+  cacheUploadUrl(hash, upData.url);
+  return upData.url;
+}
+
 // Vercel serverless functions cap body at ~4.5 MB; phone shots routinely
 // exceed that. Re-encode anything over 4 MB to a max-3500px JPEG so the
 // upload to /api/upload-photo always lands. Smaller files pass through
@@ -393,14 +455,7 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
           setStage('uploading');
           userPhotoUrls = await Promise.all(ownFiles.map(async (o) => {
             const blob = await compressImageIfNeeded(o.file);
-            const upRes = await fetch('/api/upload-photo', {
-              method: 'POST',
-              headers: { 'Content-Type': blob.type || 'application/octet-stream' },
-              body: blob,
-            });
-            const upData = await upRes.json().catch(() => ({}));
-            if (!upRes.ok) throw new Error('Blob upload failed: ' + (upData.error || upRes.status));
-            return upData.url;
+            return uploadOrDedup(blob);
           }));
         }
         const customImageUrl = userPhotoUrls[0] || null;
