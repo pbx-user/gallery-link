@@ -499,34 +499,39 @@ function DoneScreen({ concert, product, selected, own, onRestart }) {
         // uploads there's no thumb so we skip the key.
         // original_photo_storage: "external" tells Printbox to reference our
         // URLs directly instead of mirroring the bytes into its own bucket.
+        // original_photo_storage: "external" only when we have a thumbnail to
+        // pair it with — Printbox rejects external storage without a thumb
+        // ("metadata.width/height/mimetype required …"). For URLs we can't
+        // derive a thumb for (Vercel Blob user uploads, Unsplash transforms)
+        // we fall through to default storage and Printbox mirrors the bytes.
         const apiPhotoSources = [
           ...selectedPhotos.map((p) => {
-            const src = {
-              original_photo_url: p.src,
-              original_photo_storage: 'external',
-              metadata: {
+            const thumb = deriveThumbUrl(p.src);
+            const src = { original_photo_url: p.src };
+            if (thumb) {
+              src.thumbnail_photo_url = thumb;
+              src.original_photo_storage = 'external';
+              src.metadata = {
                 width: p.width,
                 height: p.height,
                 mimetype: p.mimetype || 'image/jpeg',
-              },
-            };
-            const thumb = deriveThumbUrl(p.src);
-            if (thumb) src.thumbnail_photo_url = thumb;
+              };
+            }
             return src;
           }),
           ...uploadedUserPhotos.map(({ url, width, height, mimetype }) => {
+            const thumb = deriveThumbUrl(url);
             const src = {
               original_photo_url: url,
-              original_photo_storage: 'external',
-              metadata: {
-                caption: 'gig-goer',
-                width,
-                height,
-                mimetype: mimetype || 'image/jpeg',
-              },
+              metadata: { caption: 'gig-goer' },
             };
-            const thumb = deriveThumbUrl(url);
-            if (thumb) src.thumbnail_photo_url = thumb;
+            if (thumb) {
+              src.thumbnail_photo_url = thumb;
+              src.original_photo_storage = 'external';
+              src.metadata.width = width;
+              src.metadata.height = height;
+              src.metadata.mimetype = mimetype || 'image/jpeg';
+            }
             return src;
           }),
         ];
