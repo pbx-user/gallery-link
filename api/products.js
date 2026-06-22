@@ -72,7 +72,10 @@ const DEFAULT_PRODUCTS = [
 
 let cached = null;
 let cachedAt = 0;
-const CACHE_TTL_MS = 5_000;
+// 5 min — admin saves are rare, cache invalidates immediately on write via
+// writeProducts() so we don't serve stale data after a real change. Reads
+// fetch from Blob (list() is an "advanced op" in billing).
+const CACHE_TTL_MS = 5 * 60_000;
 
 async function readProducts() {
   if (cached && Date.now() - cachedAt < CACHE_TTL_MS) return cached;

@@ -51,18 +51,14 @@ async function handler(req, res) {
     // ── POST /api/upload-photo?hash=<sha256> ────────────────────────────
     // With a hash: store under the deterministic key gallery-link/users/<hash>.
     // Same content from any future upload hits the same key and overwrites
-    // itself (allowOverwrite: true). HEAD first so we can skip the put() body
-    // round-trip if it's already there.
+    // itself (allowOverwrite: true).
+    //
+    // Skip the head() probe here — clients hit GET first for the existence
+    // check, so by the time they POST the body, the content is new (or they
+    // intentionally want to overwrite). head() in Vercel Blob counts as an
+    // "advanced operation"; halving the count per upload is the whole point.
     if (hash) {
       const filename = `gallery-link/users/${hash}`;
-      try {
-        const existing = await head(filename);
-        if (existing && existing.url) {
-          res.status(200).json({ url: existing.url, pathname: existing.pathname, dedup: true });
-          return;
-        }
-      } catch (_) {}
-
       const blob = await put(filename, req, {
         access: 'public',
         contentType,
